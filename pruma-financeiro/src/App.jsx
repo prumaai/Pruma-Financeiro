@@ -960,7 +960,7 @@ function DRE({ lancamentos, plano, periodo }) {
               const total = mv.reduce((a, b) => a + b, 0);
               const totalRB = monthRange.reduce((s, m) => s + (rbVals[m] || 0), 0);
               const bg = row.highlight ? TEAL_L : isTotal ? 'var(--color-background-secondary)' : ri % 2 === 0 ? 'var(--color-background-secondary)' : 'var(--color-background-primary)';
-              const nameColor = isTotal ? NAVY : 'var(--color-text-primary)';
+              const nameColor = isTotal ? DARK : 'var(--color-text-primary)';
 
               return (
                 <tr key={ri} style={{ borderTop: isTotal ? '1px solid var(--color-border-tertiary)' : 'none' }}>
