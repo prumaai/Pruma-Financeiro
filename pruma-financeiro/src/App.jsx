@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import {
   BarChart, Bar, AreaChart, Area, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
-import { storage } from "./storage.js";
+import * as XLSX from "xlsx";
 
 // ═══════════════════════════════════════════════════════
 // CONSTANTS
@@ -62,15 +63,26 @@ const getMonths = (count, offset = 0) => {
   return r;
 };
 
+const buildMonthRange = (start, end) => {
+  const months = [];
+  let [sy, sm] = start.split('-').map(Number);
+  const [ey, em] = end.split('-').map(Number);
+  while (sy < ey || (sy === ey && sm <= em)) {
+    months.push(`${sy}-${String(sm).padStart(2, '0')}`);
+    sm++; if (sm > 12) { sm = 1; sy++; }
+  }
+  return months;
+};
+
 // ═══════════════════════════════════════════════════════
 // STORAGE
 // ═══════════════════════════════════════════════════════
 const stLoad = async (key, def) => {
-  try { const r = await storage.get(key); return r ? JSON.parse(r.value) : def; }
+  try { const r = await window.storage.get(key, true); return r ? JSON.parse(r.value) : def; }
   catch { return def; }
 };
 const stSave = async (key, val) => {
-  try { await storage.set(key, JSON.stringify(val)); } catch {}
+  try { await window.storage.set(key, JSON.stringify(val), true); } catch {}
 };
 
 // ═══════════════════════════════════════════════════════
@@ -98,8 +110,8 @@ const PageHeader = ({ title, action }) => (
 );
 
 function Modal({ title, onClose, children, width = 540 }) {
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+  return createPortal(
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div style={{ ...S.card, width, maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div style={{ fontSize: 16, fontWeight: 500 }}>{title}</div>
@@ -107,7 +119,8 @@ function Modal({ title, onClose, children, width = 540 }) {
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -298,17 +311,18 @@ function Sidebar({ page, setPage, user, onLogout }) {
 // ═══════════════════════════════════════════════════════
 // DASHBOARD
 // ═══════════════════════════════════════════════════════
-function Dashboard({ lancamentos, clientes }) {
-  const cur = today().slice(0, 7);
-  const realRec  = lancamentos.filter(l => l.tipo === 'receita'  && l.status === 'realizado' && mk(l.dt_competencia) === cur).reduce((s, l) => s + l.valor, 0);
-  const realDesp = lancamentos.filter(l => l.tipo === 'despesa'  && l.status === 'realizado' && mk(l.dt_competencia) === cur).reduce((s, l) => s + l.valor, 0);
-  const prevRec  = lancamentos.filter(l => l.tipo === 'receita'  && l.status === 'previsto'  && mk(l.dt_competencia) === cur).reduce((s, l) => s + l.valor, 0);
+function Dashboard({ lancamentos, clientes, periodo }) {
+  const monthRange = buildMonthRange(periodo.start, periodo.end);
+  const inPeriod = l => monthRange.includes(mk(l.dt_competencia));
+  const realRec  = lancamentos.filter(l => l.tipo === 'receita'  && l.status === 'realizado' && inPeriod(l)).reduce((s, l) => s + l.valor, 0);
+  const realDesp = lancamentos.filter(l => l.tipo === 'despesa'  && l.status === 'realizado' && inPeriod(l)).reduce((s, l) => s + l.valor, 0);
+  const prevRec  = lancamentos.filter(l => l.tipo === 'receita'  && l.status === 'previsto'  && inPeriod(l)).reduce((s, l) => s + l.valor, 0);
   const aReceber = lancamentos.filter(l => l.tipo === 'receita'  && !l.dt_caixa_realizada).reduce((s, l) => s + l.valor, 0);
   const aPagar   = lancamentos.filter(l => l.tipo === 'despesa'  && !l.dt_caixa_realizada).reduce((s, l) => s + l.valor, 0);
   const resultado = realRec - realDesp;
+  const margem   = realRec > 0 ? (resultado / realRec * 100).toFixed(1) + '%' : '—';
 
-  const ms = getMonths(6, -5);
-  const chartData = ms.map(m => ({
+  const chartData = monthRange.map(m => ({
     name: ml(m),
     Receita: +lancamentos.filter(l => l.tipo === 'receita' && l.status === 'realizado' && mk(l.dt_competencia) === m).reduce((s, l) => s + l.valor, 0).toFixed(2),
     Despesa: +lancamentos.filter(l => l.tipo === 'despesa' && l.status === 'realizado' && mk(l.dt_competencia) === m).reduce((s, l) => s + l.valor, 0).toFixed(2),
@@ -319,21 +333,23 @@ function Dashboard({ lancamentos, clientes }) {
     .sort((a, b) => a.dt_caixa_prevista.localeCompare(b.dt_caixa_prevista))
     .slice(0, 7);
 
+  const periodoLabel = monthRange.length === 1 ? ml(monthRange[0]) : ml(periodo.start) + ' — ' + ml(periodo.end);
+
   return (
     <div>
-      <PageHeader title="Dashboard" />
+      <PageHeader title="Dashboard" action={<span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{periodoLabel}</span>} />
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
-        <KpiCard label="Receita Realizada (mês)" val={fmt(realRec)} color={TEAL} />
-        <KpiCard label="Despesa Realizada (mês)" val={fmt(realDesp)} color={RED} />
-        <KpiCard label="Resultado (mês)" val={fmt(resultado)} color={resultado >= 0 ? TEAL : RED} sub={resultado >= 0 ? 'Lucro ✓' : 'Prejuízo'} />
-        <KpiCard label="Receita Prevista (mês)" val={fmt(prevRec)} color={BLUE} sub="Não realizado ainda" />
-        <KpiCard label="A Receber" val={fmt(aReceber)} color={TEAL_D} />
-        <KpiCard label="A Pagar" val={fmt(aPagar)} color={AMBER} />
+        <KpiCard label="Receita Realizada" val={fmt(realRec)} color={TEAL} sub={periodoLabel} />
+        <KpiCard label="Despesa Realizada" val={fmt(realDesp)} color={RED} sub={periodoLabel} />
+        <KpiCard label="Resultado" val={fmt(resultado)} color={resultado >= 0 ? TEAL : RED} sub={margem + ' de margem'} />
+        <KpiCard label="Receita Prevista" val={fmt(prevRec)} color={BLUE} sub="Não realizado ainda" />
+        <KpiCard label="A Receber (total)" val={fmt(aReceber)} color={TEAL_D} />
+        <KpiCard label="A Pagar (total)" val={fmt(aPagar)} color={AMBER} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16 }}>
         <div style={S.card}>
-          <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 16 }}>Receita vs Despesa — últimos 6 meses</div>
+          <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 16 }}>Receita vs Despesa — {periodoLabel}</div>
           <ResponsiveContainer width="100%" height={210}>
             <BarChart data={chartData} barGap={3} barCategoryGap="28%">
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-tertiary)" />
@@ -379,18 +395,48 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
   const [filter, setFilter] = useState({ tipo: '', status: '', mes: '' });
+  const [parcelar, setParcelar] = useState(false);
+  const [numParcelas, setNumParcelas] = useState(2);
+  const [primeiraData, setPrimeiraData] = useState('');
   const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const emptyForm = { tipo: 'receita', status: 'previsto', descricao: '', conta_id: '', cliente_id: '', valor: '', custo: '', dt_competencia: today(), dt_caixa_prevista: '', dt_caixa_realizada: '' };
 
+  const addMonths = (dateStr, n) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T12:00:00');
+    d.setMonth(d.getMonth() + n);
+    return d.toISOString().slice(0, 10);
+  };
+
   const onSave = async () => {
     if (!form.descricao?.trim() || !form.valor || !form.conta_id || !form.dt_competencia)
       return alert('Preencha: Descrição, Conta, Valor e Data de Competência.');
-    const item = { ...form, id: form.id || uid(), valor: +form.valor || 0, custo: +form.custo || 0, criado_por: currentUser.name };
-    const isNew = !form.id;
-    await saveLanc(isNew ? [...lancamentos, item] : lancamentos.map(l => l.id === item.id ? item : l));
-    await addAudit(isNew ? 'Criou lançamento' : 'Editou lançamento', 'Lançamento', item.descricao);
-    setModal(false);
+
+    if (parcelar) {
+      if (!primeiraData) return alert('Informe a data de vencimento da primeira parcela.');
+      const n = +numParcelas || 2;
+      const valorParcela = +(+form.valor / n).toFixed(2);
+      const novos = Array.from({ length: n }, (_, i) => ({
+        ...form,
+        id: uid(),
+        descricao: `${form.descricao} (${i + 1}/${n})`,
+        valor: valorParcela,
+        custo: i === 0 ? (+form.custo || 0) : 0,
+        dt_caixa_prevista: addMonths(primeiraData, i),
+        dt_caixa_realizada: '',
+        status: 'previsto',
+        criado_por: currentUser.name,
+      }));
+      await saveLanc([...lancamentos, ...novos]);
+      await addAudit('Criou lançamento parcelado', 'Lançamento', `${form.descricao} — ${n}x de ${fmt(valorParcela)}`);
+    } else {
+      const item = { ...form, id: form.id || uid(), valor: +form.valor || 0, custo: +form.custo || 0, criado_por: currentUser.name };
+      const isNew = !form.id;
+      await saveLanc(isNew ? [...lancamentos, item] : lancamentos.map(l => l.id === item.id ? item : l));
+      await addAudit(isNew ? 'Criou lançamento' : 'Editou lançamento', 'Lançamento', item.descricao);
+    }
+    setModal(false); setParcelar(false);
   };
 
   const onDel = async (id, desc) => {
@@ -408,10 +454,12 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
     .filter(l => (!filter.tipo || l.tipo === filter.tipo) && (!filter.status || l.status === filter.status) && (!filter.mes || mk(l.dt_competencia) === filter.mes))
     .sort((a, b) => (b.dt_competencia || '').localeCompare(a.dt_competencia || ''));
 
+  const valorParcela = parcelar && form.valor && numParcelas ? +((+form.valor) / numParcelas).toFixed(2) : null;
+
   return (
     <div>
       <PageHeader title="Lançamentos" action={
-        <button onClick={() => { setForm(emptyForm); setModal(true); }} style={S.btn(TEAL)}>+ Novo Lançamento</button>
+        <button onClick={() => { setForm(emptyForm); setParcelar(false); setPrimeiraData(''); setModal(true); }} style={S.btn(TEAL)}>+ Novo Lançamento</button>
       } />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -455,7 +503,7 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
                     <td style={S.TD}>
                       <div style={{ display: 'flex', gap: 4 }}>
                         {!l.dt_caixa_realizada && <button onClick={() => onBaixa(l)} title="Dar baixa" style={S.sm(TEAL_L, TEAL_D)}>✓</button>}
-                        <button onClick={() => { setForm({ ...l }); setModal(true); }} style={S.sm('var(--color-background-secondary)', 'var(--color-text-secondary)')}>✎</button>
+                        <button onClick={() => { setForm({ ...l }); setParcelar(false); setModal(true); }} style={S.sm('var(--color-background-secondary)', 'var(--color-text-secondary)')}>✎</button>
                         <button onClick={() => onDel(l.id, l.descricao)} style={S.sm(RED_L, RED)}>✕</button>
                       </div>
                     </td>
@@ -468,7 +516,7 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
       </div>
 
       {modal && (
-        <Modal title={form.id ? 'Editar Lançamento' : 'Novo Lançamento'} onClose={() => setModal(false)}>
+        <Modal title={form.id ? 'Editar Lançamento' : 'Novo Lançamento'} onClose={() => { setModal(false); setParcelar(false); }} width={580}>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <Field label="Descrição *" col="1 / -1">
               <input value={form.descricao || ''} onChange={e => setF('descricao', e.target.value)} style={S.inp} autoFocus />
@@ -492,7 +540,7 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
                 {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
               </select>
             </Field>
-            <Field label="Valor (R$) *">
+            <Field label={parcelar ? 'Valor Total (R$) *' : 'Valor (R$) *'}>
               <input type="number" value={form.valor || ''} onChange={e => setF('valor', e.target.value)} style={S.inp} min="0" step="0.01" />
             </Field>
             {form.tipo === 'receita' && (
@@ -503,22 +551,62 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
             <Field label="Data de Competência *">
               <input type="date" value={form.dt_competencia || ''} onChange={e => setF('dt_competencia', e.target.value)} style={S.inp} />
             </Field>
-            <Field label="Vencimento (Caixa Previsto)">
-              <input type="date" value={form.dt_caixa_prevista || ''} onChange={e => setF('dt_caixa_prevista', e.target.value)} style={S.inp} />
-            </Field>
-            <Field label="Data de Receb. / Pagamento">
-              <input type="date" value={form.dt_caixa_realizada || ''} onChange={e => { setF('dt_caixa_realizada', e.target.value); if (e.target.value) setF('status', 'realizado'); }} style={S.inp} />
-            </Field>
-            <Field label="Status">
-              <select value={form.status || 'previsto'} onChange={e => setF('status', e.target.value)} style={S.inp}>
-                <option value="previsto">Previsto</option>
-                <option value="realizado">Realizado</option>
-              </select>
-            </Field>
+            {!parcelar && (
+              <Field label="Vencimento (Caixa Previsto)">
+                <input type="date" value={form.dt_caixa_prevista || ''} onChange={e => setF('dt_caixa_prevista', e.target.value)} style={S.inp} />
+              </Field>
+            )}
+            {!parcelar && (
+              <Field label="Data de Receb. / Pagamento">
+                <input type="date" value={form.dt_caixa_realizada || ''} onChange={e => { setF('dt_caixa_realizada', e.target.value); if (e.target.value) setF('status', 'realizado'); }} style={S.inp} />
+              </Field>
+            )}
+            {!parcelar && (
+              <Field label="Status">
+                <select value={form.status || 'previsto'} onChange={e => setF('status', e.target.value)} style={S.inp}>
+                  <option value="previsto">Previsto</option>
+                  <option value="realizado">Realizado</option>
+                </select>
+              </Field>
+            )}
           </div>
-          <div style={{ display: 'flex', gap: 8, marginTop: 22, justifyContent: 'flex-end' }}>
-            <button onClick={() => setModal(false)} style={S.btn('var(--color-background-secondary)', 'var(--color-text-primary)')}>Cancelar</button>
-            <button onClick={onSave} style={S.btn(TEAL)}>Salvar Lançamento</button>
+
+          {/* Parcelamento */}
+          {!form.id && (
+            <div style={{ marginTop: 16, padding: 14, background: parcelar ? TEAL_L : 'var(--color-background-secondary)', borderRadius: 8, border: `1px solid ${parcelar ? TEAL : 'var(--color-border-tertiary)'}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: parcelar ? 14 : 0 }}>
+                <input type="checkbox" id="parcelar" checked={parcelar} onChange={e => setParcelar(e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: TEAL }} />
+                <label htmlFor="parcelar" style={{ fontWeight: 500, cursor: 'pointer', color: TEAL_D, fontSize: 13 }}>
+                  Parcelar este lançamento
+                </label>
+              </div>
+              {parcelar && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <Field label="Número de parcelas">
+                    <input type="number" value={numParcelas} onChange={e => setNumParcelas(Math.max(2, Math.min(48, +e.target.value)))} style={S.inp} min="2" max="48" />
+                  </Field>
+                  <Field label="Vencimento da 1ª parcela">
+                    <input type="date" value={primeiraData} onChange={e => setPrimeiraData(e.target.value)} style={S.inp} />
+                  </Field>
+                  {valorParcela && (
+                    <div style={{ gridColumn: '1 / -1', background: '#fff', borderRadius: 6, padding: '10px 14px', border: `1px solid ${TEAL_L}` }}>
+                      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Serão criados </span>
+                      <strong style={{ color: TEAL_D }}>{numParcelas} lançamentos</strong>
+                      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}> de </span>
+                      <strong style={{ color: TEAL_D }}>{fmt(valorParcela)}</strong>
+                      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}> com vencimento mensal a partir de {fmtDate(primeiraData || today())}.</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end' }}>
+            <button onClick={() => { setModal(false); setParcelar(false); }} style={S.btn('var(--color-background-secondary)', 'var(--color-text-primary)')}>Cancelar</button>
+            <button onClick={onSave} style={S.btn(TEAL)}>
+              {parcelar ? `Gerar ${numParcelas} Parcelas` : 'Salvar Lançamento'}
+            </button>
           </div>
         </Modal>
       )}
@@ -725,83 +813,179 @@ function PlanoContas({ plano, currentUser, addAudit, savePlano }) {
 // ═══════════════════════════════════════════════════════
 // DRE
 // ═══════════════════════════════════════════════════════
-function DRE({ lancamentos, plano }) {
-  const [mes, setMes] = useState(today().slice(0, 7));
+function DRE({ lancamentos, plano, periodo }) {
+  const [startMonth, setStartMonth] = useState(periodo.start);
+  const [endMonth, setEndMonth]     = useState(periodo.end);
+  const [view, setView]             = useState('realizado');
+  useEffect(() => { setStartMonth(periodo.start); setEndMonth(periodo.end); }, [periodo.start, periodo.end]);
+  const [showAV, setShowAV]         = useState(true);
+  const [showAH, setShowAH]         = useState(true);
 
-  const sumContas = (contas, statusFilter) =>
-    contas.reduce((s, p) => {
-      return s + lancamentos.filter(l =>
-        l.conta_id === p.id && mk(l.dt_competencia) === mes && (!statusFilter || l.status === statusFilter)
-      ).reduce((ss, l) => ss + l.valor, 0);
-    }, 0);
+  const monthRange = useMemo(() => buildMonthRange(startMonth, endMonth), [startMonth, endMonth]);
+  const statusFilter = view === 'realizado' ? 'realizado' : null;
 
-  const G = grupo => plano.filter(p => p.grupo === grupo);
-  const dreRows = [
-    { section: 'Receitas',             contas: plano.filter(p => p.tipo === 'receita') },
-    { label: 'RECEITA BRUTA',          compute: st => sumContas(plano.filter(p => p.tipo === 'receita'), st), total: true, positive: true },
-    { section: 'Custos Operacionais',  contas: G('Custos Operacionais') },
-    { label: 'LUCRO BRUTO',            compute: st => sumContas(plano.filter(p => p.tipo === 'receita'), st) - sumContas(G('Custos Operacionais'), st), total: true, positive: true },
-    { section: 'Despesas Operacionais',contas: G('Despesas Operacionais') },
-    { label: 'EBITDA',                 compute: st => sumContas(plano.filter(p => p.tipo === 'receita'), st) - sumContas(G('Custos Operacionais'), st) - sumContas(G('Despesas Operacionais'), st), total: true, positive: true },
-    { section: 'Despesas Financeiras', contas: G('Despesas Financeiras') },
-    { label: 'RESULTADO LÍQUIDO',      compute: st => sumContas(plano.filter(p => p.tipo === 'receita'), st) - sumContas(plano.filter(p => p.tipo === 'despesa'), st), total: true, positive: true, highlight: true },
+  const sumContas = (contas, month) =>
+    contas.reduce((s, p) =>
+      s + lancamentos.filter(l =>
+        l.conta_id === p.id && mk(l.dt_competencia) === month && (!statusFilter || l.status === statusFilter)
+      ).reduce((ss, l) => ss + l.valor, 0)
+    , 0);
+
+  const G = (grupo) => plano.filter(p => p.grupo === grupo);
+  const Rec = plano.filter(p => p.tipo === 'receita');
+  const CO  = G('Custos Operacionais');
+  const DO  = G('Despesas Operacionais');
+  const DF  = G('Despesas Financeiras');
+
+  const dreStructure = [
+    { type: 'section', label: '(+)  RECEITA OPERACIONAL', theme: 'receita' },
+    ...Rec.map(p => ({ type: 'conta', ...p })),
+    { type: 'total', label: 'RECEITA BRUTA', fn: m => sumContas(Rec, m), isRB: true },
+    { type: 'section', label: '(-)  CUSTOS OPERACIONAIS', theme: 'despesa' },
+    ...CO.map(p => ({ type: 'conta', ...p })),
+    { type: 'total', label: 'LUCRO BRUTO', fn: m => sumContas(Rec, m) - sumContas(CO, m) },
+    { type: 'section', label: '(-)  DESPESAS OPERACIONAIS', theme: 'despesa' },
+    ...DO.map(p => ({ type: 'conta', ...p })),
+    { type: 'total', label: 'EBITDA', fn: m => sumContas(Rec, m) - sumContas(CO, m) - sumContas(DO, m) },
+    { type: 'section', label: '(-)  DESPESAS FINANCEIRAS', theme: 'despesa' },
+    ...DF.map(p => ({ type: 'conta', ...p })),
+    { type: 'total', label: 'RESULTADO LÍQUIDO', fn: m => sumContas(Rec, m) - sumContas(plano.filter(p => p.tipo === 'despesa'), m), highlight: true },
   ];
 
-  const secColor = { 'Receitas': TEAL_D, 'Custos Operacionais': RED, 'Despesas Operacionais': RED, 'Despesas Financeiras': RED };
-  const secBg    = { 'Receitas': TEAL_L, 'Custos Operacionais': RED_L, 'Despesas Operacionais': RED_L, 'Despesas Financeiras': RED_L };
+  // Pre-compute all values
+  const vals = useMemo(() => {
+    const out = {};
+    for (const row of dreStructure) {
+      const key = row.label || row.id;
+      const fn = row.fn || (row.type === 'conta' ? (m => sumContas([row], m)) : null);
+      if (fn) { out[key] = {}; for (const m of monthRange) out[key][m] = fn(m); }
+    }
+    return out;
+  }, [lancamentos, monthRange, statusFilter, plano]);
+
+  const rbVals = vals['RECEITA BRUTA'] || {};
+
+  const exportExcel = () => {
+    const rows = [['Conta', ...monthRange.map(ml), 'Total']];
+    for (const row of dreStructure) {
+      if (row.type === 'section') { rows.push([row.label]); continue; }
+      const key = row.label || row.id;
+      const mv = monthRange.map(m => vals[key]?.[m] ?? 0);
+      const total = mv.reduce((a, b) => a + b, 0);
+      const label = row.type === 'conta' ? `  ${row.cod}  ${row.nome}` : row.label;
+      if (showAV) {
+        rows.push([label, ...monthRange.flatMap((m, i) => [mv[i], rbVals[m] > 0 ? (mv[i] / rbVals[m] * 100).toFixed(1) + '%' : '']), total]);
+      } else {
+        rows.push([label, ...mv, total]);
+      }
+    }
+    if (showAV) rows[0] = ['Conta', ...monthRange.flatMap(m => [ml(m), 'AV%']), 'Total'];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'DRE');
+    XLSX.writeFile(wb, `DRE_Pruma_${startMonth}_${endMonth}.xlsx`);
+  };
+
+  const toggleBtn = (active, label, onClick, color = BLUE) =>
+    <button onClick={onClick} style={S.sm(active ? color : 'var(--color-background-primary)', active ? '#fff' : 'var(--color-text-secondary)')}>{label}</button>;
 
   return (
     <div>
       <PageHeader title="DRE — Demonstrativo de Resultado" action={
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Período:</span>
-          <input type="month" value={mes} onChange={e => setMes(e.target.value)} style={{ ...S.inp, width: 148, padding: '7px 10px', fontSize: 13 }} />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>De:</span>
+          <input type="month" value={startMonth} onChange={e => setStartMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
+          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Até:</span>
+          <input type="month" value={endMonth} onChange={e => setEndMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
+          <button onClick={exportExcel} style={S.btn(TEAL_D)}>↓ Excel</button>
         </div>
       } />
 
-      <div style={S.card}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        {toggleBtn(view === 'realizado', 'Realizado', () => setView('realizado'), TEAL)}
+        {toggleBtn(view === 'orcado', 'Orçado (Total)', () => setView('orcado'), TEAL)}
+        <div style={{ width: 1, height: 20, background: 'var(--color-border-tertiary)', margin: '0 4px' }} />
+        {toggleBtn(showAV, 'AV% ' + (showAV ? '✓' : ''), () => setShowAV(v => !v))}
+        {toggleBtn(showAH, 'AH% ' + (showAH ? '✓' : ''), () => setShowAH(v => !v))}
+        <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
+          AV% = % da Receita Bruta &nbsp;·&nbsp; AH% = variação vs mês anterior
+        </span>
+      </div>
+
+      <div style={{ ...S.card, overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: monthRange.length * 150 + 240 }}>
           <thead>
             <tr>
-              <th style={{ ...S.TH, width: '38%' }}>Conta</th>
-              <th style={{ ...S.TH, textAlign: 'right' }}>Orçado (Total)</th>
-              <th style={{ ...S.TH, textAlign: 'right' }}>Realizado</th>
-              <th style={{ ...S.TH, textAlign: 'right' }}>Variação</th>
+              <th style={{ ...S.TH, textAlign: 'left', minWidth: 230, position: 'sticky', left: 0, background: '#111827', zIndex: 2 }}>Conta</th>
+              {monthRange.map((m, i) => (
+                <th key={m} style={{ ...S.TH, textAlign: 'center', minWidth: 130, background: mk(today()) === m ? `${TEAL}BB` : '#111827' }}>
+                  {ml(m)}{mk(today()) === m ? ' ●' : ''}
+                </th>
+              ))}
+              <th style={{ ...S.TH, textAlign: 'right', background: '#0a1628', minWidth: 120 }}>Total</th>
+              {showAV && <th style={{ ...S.TH, textAlign: 'right', background: '#0a1628', fontSize: 9, color: TEAL }}>AV%</th>}
             </tr>
           </thead>
           <tbody>
-            {dreRows.map((row, i) => {
-              if (row.section) return (
-                <tr key={i}>
-                  <td colSpan={4} style={{ padding: '10px 12px 4px', fontSize: 10, fontWeight: 800, letterSpacing: '.1em', color: secColor[row.section] || 'var(--color-text-secondary)', textTransform: 'uppercase', background: secBg[row.section] || 'transparent', borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
-                    {row.section.includes('Despesas') || row.section.includes('Custos') ? '(-)  ' : '(+)  '}{row.section}
-                  </td>
-                </tr>
-              );
-              if (row.contas) return row.contas.sort((a,b) => a.cod.localeCompare(b.cod)).map(p => {
-                const orc = sumContas([p], null), real = sumContas([p], 'realizado'), var_ = real - orc;
+            {dreStructure.map((row, ri) => {
+              if (row.type === 'section') {
+                const bg = row.theme === 'receita' ? TEAL_L : RED_L;
+                const color = row.theme === 'receita' ? TEAL_D : RED;
                 return (
-                  <tr key={p.id}>
-                    <td style={{ ...S.TD, paddingLeft: 24, fontSize: 12 }}>{p.nome}</td>
-                    <td style={{ ...S.TD, textAlign: 'right', fontSize: 12 }}>{fmt(orc)}</td>
-                    <td style={{ ...S.TD, textAlign: 'right', fontSize: 12 }}>{fmt(real)}</td>
-                    <td style={{ ...S.TD, textAlign: 'right', fontSize: 12, color: var_ >= 0 ? TEAL_D : RED }}>{var_ >= 0 ? '+' : ''}{fmt(var_)}</td>
-                  </tr>
-                );
-              });
-              if (row.label) {
-                const orc = row.compute(null), real = row.compute('realizado'), var_ = real - orc;
-                const color = real >= 0 ? TEAL_D : RED;
-                return (
-                  <tr key={i} style={{ background: row.highlight ? `${TEAL}11` : 'var(--color-background-secondary)' }}>
-                    <td style={{ ...S.TD, fontWeight: row.highlight ? 800 : 700, fontSize: row.highlight ? 14 : 13, borderTop: '1px solid var(--color-border-tertiary)' }}>{row.label}</td>
-                    <td style={{ ...S.TD, textAlign: 'right', fontWeight: 700, color, borderTop: '1px solid var(--color-border-tertiary)' }}>{fmt(orc)}</td>
-                    <td style={{ ...S.TD, textAlign: 'right', fontWeight: 700, color, borderTop: '1px solid var(--color-border-tertiary)' }}>{fmt(real)}</td>
-                    <td style={{ ...S.TD, textAlign: 'right', fontSize: 12, color: var_ >= 0 ? TEAL_D : RED, borderTop: '1px solid var(--color-border-tertiary)' }}>{var_ >= 0 ? '+' : ''}{fmt(var_)}</td>
+                  <tr key={ri}>
+                    <td colSpan={monthRange.length + 1 + (showAV ? 1 : 0) + 1} style={{ padding: '8px 12px 4px', fontSize: 10, fontWeight: 800, letterSpacing: '.1em', color, background: bg, textTransform: 'uppercase', position: 'sticky', left: 0 }}>
+                      {row.label}
+                    </td>
                   </tr>
                 );
               }
-              return null;
+
+              const key = row.label || row.id;
+              const isTotal = row.type === 'total';
+              const fn = row.fn || (m => sumContas([row], m));
+              const mv = monthRange.map(m => vals[key]?.[m] ?? 0);
+              const total = mv.reduce((a, b) => a + b, 0);
+              const totalRB = monthRange.reduce((s, m) => s + (rbVals[m] || 0), 0);
+              const bg = row.highlight ? TEAL_L : isTotal ? 'var(--color-background-secondary)' : ri % 2 === 0 ? 'var(--color-background-secondary)' : 'var(--color-background-primary)';
+              const nameColor = isTotal ? NAVY : 'var(--color-text-primary)';
+
+              return (
+                <tr key={ri} style={{ borderTop: isTotal ? '1px solid var(--color-border-tertiary)' : 'none' }}>
+                  <td style={{ ...S.TD, fontWeight: row.highlight ? 800 : isTotal ? 700 : 400, fontSize: row.highlight ? 14 : 13, color: nameColor, background: bg, position: 'sticky', left: 0, paddingLeft: isTotal ? 12 : 24 }}>
+                    {row.type === 'conta' ? `${row.cod}  ${row.nome}` : row.label}
+                  </td>
+                  {mv.map((v, i) => {
+                    const rb = rbVals[monthRange[i]] || 0;
+                    const av = rb > 0 ? v / rb * 100 : null;
+                    const prev = i > 0 ? (vals[key]?.[monthRange[i - 1]] ?? 0) : null;
+                    const ah = prev !== null && prev !== 0 ? (v - prev) / Math.abs(prev) * 100 : null;
+                    const valColor = isTotal ? (v >= 0 ? TEAL_D : RED) : row.tipo === 'despesa' ? 'var(--color-text-secondary)' : 'var(--color-text-primary)';
+                    return (
+                      <td key={monthRange[i]} style={{ ...S.TD, textAlign: 'right', background: bg, verticalAlign: 'top' }}>
+                        <div style={{ fontWeight: isTotal ? 700 : 400, color: valColor, fontSize: row.highlight ? 14 : 13 }}>
+                          {v ? fmt(v) : '—'}
+                        </div>
+                        {showAV && av !== null && (
+                          <div style={{ fontSize: 10, color: BLUE, marginTop: 1 }}>{av.toFixed(1)}% RB</div>
+                        )}
+                        {showAH && ah !== null && (
+                          <div style={{ fontSize: 10, color: ah >= 0 ? TEAL_D : RED, marginTop: 1 }}>
+                            {ah >= 0 ? '▲' : '▼'} {Math.abs(ah).toFixed(1)}%
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                  <td style={{ ...S.TD, textAlign: 'right', fontWeight: row.highlight ? 800 : isTotal ? 700 : 500, color: isTotal ? (total >= 0 ? TEAL_D : RED) : 'var(--color-text-primary)', background: bg, fontSize: row.highlight ? 14 : 13 }}>
+                    {total ? fmt(total) : '—'}
+                  </td>
+                  {showAV && (
+                    <td style={{ ...S.TD, textAlign: 'right', fontSize: 11, color: BLUE, background: bg }}>
+                      {totalRB > 0 ? (total / totalRB * 100).toFixed(1) + '%' : '—'}
+                    </td>
+                  )}
+                </tr>
+              );
             })}
           </tbody>
         </table>
@@ -813,73 +997,128 @@ function DRE({ lancamentos, plano }) {
 // ═══════════════════════════════════════════════════════
 // FLUXO DE CAIXA
 // ═══════════════════════════════════════════════════════
-function FluxoCaixa({ lancamentos }) {
-  const [saldo0, setSaldo0] = useState('0');
-  const [view, setView] = useState('realizado');
-  const ms = getMonths(6, -3);
+function FluxoCaixa({ lancamentos, periodo }) {
+  const [startMonth, setStartMonth] = useState(periodo.start);
+  const [endMonth, setEndMonth]     = useState(periodo.end);
+  const [saldo0, setSaldo0]         = useState('0');
+  useEffect(() => { setStartMonth(periodo.start); setEndMonth(periodo.end); }, [periodo.start, periodo.end]);
 
-  const getVal = (tipo, m) => lancamentos.filter(l => {
-    const dateCaixa = view === 'realizado' ? l.dt_caixa_realizada : (l.dt_caixa_realizada || l.dt_caixa_prevista);
-    return l.tipo === tipo && mk(dateCaixa) === m && (view === 'projetado' || l.status === 'realizado');
-  }).reduce((s, l) => s + l.valor, 0);
+  const monthRange = useMemo(() => buildMonthRange(startMonth, endMonth), [startMonth, endMonth]);
+
+  const getEntradas = (m, status) => lancamentos.filter(l =>
+    l.tipo === 'receita' && l.status === status &&
+    mk(status === 'realizado' ? l.dt_caixa_realizada : l.dt_caixa_prevista) === m
+  ).reduce((s, l) => s + l.valor, 0);
+
+  const getSaidas = (m, status) => lancamentos.filter(l =>
+    l.tipo === 'despesa' && l.status === status &&
+    mk(status === 'realizado' ? l.dt_caixa_realizada : l.dt_caixa_prevista) === m
+  ).reduce((s, l) => s + l.valor, 0);
 
   let saldo = +saldo0 || 0;
-  const rows = ms.map(m => {
-    const ent = getVal('receita', m), sai = getVal('despesa', m), liq = ent - sai;
-    const sf = saldo + liq;
-    const r = { m, ent, sai, liq, si: saldo, sf };
+  const monthData = monthRange.map(m => {
+    const entReal = getEntradas(m, 'realizado');
+    const saiReal = getSaidas(m, 'realizado');
+    const entPrev = getEntradas(m, 'previsto');
+    const saiPrev = getSaidas(m, 'previsto');
+    const liquido = (entReal - saiReal) + (entPrev - saiPrev);
+    const si = saldo;
+    const sf = saldo + liquido;
     saldo = sf;
-    return r;
+    return { m, entReal, saiReal, entPrev, saiPrev, liquido, si, sf };
   });
 
-  const chartData = rows.map(r => ({ name: ml(r.m), Entradas: +r.ent.toFixed(2), Saídas: +r.sai.toFixed(2), 'Saldo Final': +r.sf.toFixed(2) }));
+  const tableRows = [
+    { key: 'si',      label: 'Saldo Inicial',            fn: r => r.si,      bold: false, color: 'var(--color-text-secondary)', bg: 'var(--color-background-secondary)', italic: false },
+    { key: 'entReal', label: '(+) Entradas Realizadas',  fn: r => r.entReal, bold: false, color: TEAL_D,    bg: TEAL_L },
+    { key: 'saiReal', label: '(-) Saídas Realizadas',    fn: r => r.saiReal, bold: false, color: RED,       bg: RED_L,  neg: true },
+    { key: 'entPrev', label: '(+) Entradas Previstas',   fn: r => r.entPrev, bold: false, color: TEAL_D,    bg: 'var(--color-background-primary)', italic: true },
+    { key: 'saiPrev', label: '(-) Saídas Previstas',     fn: r => r.saiPrev, bold: false, color: RED,       bg: 'var(--color-background-primary)', italic: true, neg: true },
+    { key: 'liquido', label: 'Líquido do Período',        fn: r => r.liquido, bold: true,  color: null,      bg: 'var(--color-background-secondary)' },
+    { key: 'sf',      label: 'SALDO FINAL',               fn: r => r.sf,      bold: true,  color: null,      bg: TEAL_L, highlight: true },
+  ];
+
+  const exportExcel = () => {
+    const header = ['Categoria', ...monthRange.map(ml), 'Total'];
+    const rows = [header, ...tableRows.map(tr => {
+      const vals = monthData.map(r => tr.fn(r));
+      return [tr.label, ...vals, tr.key === 'si' || tr.key === 'sf' ? '' : vals.reduce((a, b) => a + b, 0)];
+    })];
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Fluxo de Caixa');
+    XLSX.writeFile(wb, `FluxoCaixa_Pruma_${startMonth}_${endMonth}.xlsx`);
+  };
+
+  const chartData = monthData.map(r => ({
+    name: ml(r.m),
+    Entradas: +(r.entReal + r.entPrev).toFixed(2),
+    Saídas: +(r.saiReal + r.saiPrev).toFixed(2),
+    'Saldo Final': +r.sf.toFixed(2),
+  }));
 
   return (
     <div>
       <PageHeader title="Fluxo de Caixa" action={
-        <div style={{ display: 'flex', gap: 6 }}>
-          {['realizado', 'projetado'].map(v => (
-            <button key={v} onClick={() => setView(v)} style={S.sm(view === v ? TEAL : 'var(--color-background-primary)', view === v ? '#fff' : 'var(--color-text-secondary)')}>
-              {v === 'realizado' ? 'Realizado' : 'Projetado'}
-            </button>
-          ))}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>De:</span>
+          <input type="month" value={startMonth} onChange={e => setStartMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
+          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Até:</span>
+          <input type="month" value={endMonth} onChange={e => setEndMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
+          <button onClick={exportExcel} style={S.btn(TEAL_D)}>↓ Excel</button>
         </div>
       } />
 
-      <div style={{ ...S.card, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
-        <label style={{ ...S.lbl, marginBottom: 0, whiteSpace: 'nowrap', fontSize: 13 }}>Saldo Inicial (R$):</label>
+      <div style={{ ...S.card, marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
+        <label style={{ ...S.lbl, marginBottom: 0, whiteSpace: 'nowrap' }}>Saldo Inicial (R$):</label>
         <input type="number" value={saldo0} onChange={e => setSaldo0(e.target.value)} style={{ ...S.inp, width: 180 }} />
-        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Carry-forward automático mês a mês</span>
+        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Carry-forward automático entre os meses</span>
+      </div>
+
+      <div style={{ ...S.card, overflowX: 'auto', marginBottom: 16 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: monthRange.length * 140 + 230 }}>
+          <thead>
+            <tr>
+              <th style={{ ...S.TH, textAlign: 'left', minWidth: 220, position: 'sticky', left: 0, background: '#111827', zIndex: 2 }}>Categoria</th>
+              {monthRange.map(m => (
+                <th key={m} style={{ ...S.TH, textAlign: 'right', minWidth: 130, background: mk(today()) === m ? `${TEAL}BB` : '#111827' }}>
+                  {ml(m)}{mk(today()) === m ? ' ●' : ''}
+                </th>
+              ))}
+              <th style={{ ...S.TH, textAlign: 'right', background: '#0a1628', minWidth: 120 }}>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tableRows.map(tr => {
+              const vals = monthData.map(r => tr.fn(r));
+              const total = ['si', 'sf'].includes(tr.key) ? null : vals.reduce((a, b) => a + b, 0);
+              const bg = tr.bg || 'var(--color-background-primary)';
+              return (
+                <tr key={tr.key} style={{ borderTop: tr.highlight ? '1px solid var(--color-border-tertiary)' : 'none' }}>
+                  <td style={{ ...S.TD, fontWeight: tr.bold ? 700 : 400, color: tr.color || 'var(--color-text-primary)', fontStyle: tr.italic ? 'italic' : 'normal', background: bg, position: 'sticky', left: 0 }}>
+                    {tr.label}
+                  </td>
+                  {vals.map((v, i) => {
+                    const color = tr.highlight ? (v >= 0 ? TEAL_D : RED) : tr.key === 'liquido' ? (v >= 0 ? TEAL_D : RED) : (tr.color || 'var(--color-text-primary)');
+                    return (
+                      <td key={monthRange[i]} style={{ ...S.TD, textAlign: 'right', fontWeight: tr.bold ? 700 : 400, color, background: bg }}>
+                        {tr.neg ? (v ? `(${fmt(v)})` : '—') : (v !== null && v !== 0 ? fmt(v) : '—')}
+                      </td>
+                    );
+                  })}
+                  <td style={{ ...S.TD, textAlign: 'right', fontWeight: tr.bold ? 700 : 400, color: tr.highlight ? (monthData.at(-1)?.sf >= 0 ? TEAL_D : RED) : (tr.color || 'var(--color-text-primary)'), background: bg }}>
+                    {total !== null ? (tr.neg ? (total ? `(${fmt(total)})` : '—') : (total ? fmt(total) : '—')) : '—'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       <div style={S.card}>
-        <div style={{ overflowX: 'auto', marginBottom: 20 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 650 }}>
-            <thead>
-              <tr>
-                <th style={S.TH}>Mês</th>
-                <th style={{ ...S.TH, textAlign: 'right' }}>Saldo Inicial</th>
-                <th style={{ ...S.TH, textAlign: 'right', color: TEAL_D }}>(+) Entradas</th>
-                <th style={{ ...S.TH, textAlign: 'right', color: RED }}>(-) Saídas</th>
-                <th style={{ ...S.TH, textAlign: 'right' }}>Líquido</th>
-                <th style={{ ...S.TH, textAlign: 'right' }}>Saldo Final</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map(r => (
-                <tr key={r.m} style={{ background: mk(today()) === r.m ? 'var(--color-background-secondary)' : 'transparent' }}>
-                  <td style={{ ...S.TD, fontWeight: mk(today()) === r.m ? 600 : 400 }}>{ml(r.m)}{mk(today()) === r.m && <span style={{ fontSize: 10, color: TEAL_D, marginLeft: 6 }}>atual</span>}</td>
-                  <td style={{ ...S.TD, textAlign: 'right', fontSize: 12 }}>{fmt(r.si)}</td>
-                  <td style={{ ...S.TD, textAlign: 'right', fontWeight: 500, color: TEAL_D }}>{fmt(r.ent)}</td>
-                  <td style={{ ...S.TD, textAlign: 'right', fontWeight: 500, color: RED }}>({fmt(r.sai)})</td>
-                  <td style={{ ...S.TD, textAlign: 'right', fontWeight: 500, color: r.liq >= 0 ? TEAL_D : RED }}>{fmt(r.liq)}</td>
-                  <td style={{ ...S.TD, textAlign: 'right', fontWeight: 700, color: r.sf >= 0 ? TEAL_D : RED }}>{fmt(r.sf)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <ResponsiveContainer width="100%" height={200}>
+        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>Evolução do Saldo Final</div>
+        <ResponsiveContainer width="100%" height={190}>
           <AreaChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-tertiary)" />
             <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -900,7 +1139,7 @@ function FluxoCaixa({ lancamentos }) {
 // ═══════════════════════════════════════════════════════
 // CONTAS A RECEBER / PAGAR
 // ═══════════════════════════════════════════════════════
-function ContasReceberPagar({ lancamentos, clientes, plano, currentUser, addAudit, saveLanc }) {
+function ContasReceberPagar({ lancamentos, clientes, plano, currentUser, addAudit, saveLanc, periodo }) {
   const [tab, setTab] = useState('receber');
   const isRec = tab === 'receber';
   const tipo = isRec ? 'receita' : 'despesa';
@@ -988,10 +1227,10 @@ function ContasReceberPagar({ lancamentos, clientes, plano, currentUser, addAudi
 // ═══════════════════════════════════════════════════════
 // RELATÓRIO DE VENDAS POR SERVIÇO
 // ═══════════════════════════════════════════════════════
-function RelatorioVendas({ lancamentos, clientes, plano }) {
-  const [periodo, setPeriodo] = useState('');
+function RelatorioVendas({ lancamentos, clientes, plano, periodo: globalPeriodo }) {
+  const periodoMeses = buildMonthRange(globalPeriodo.start, globalPeriodo.end);
 
-  const receitas = lancamentos.filter(l => l.tipo === 'receita' && (!periodo || mk(l.dt_competencia) === periodo));
+  const receitas = lancamentos.filter(l => l.tipo === 'receita' && periodoMeses.includes(mk(l.dt_competencia)));
 
   const byServico = plano.filter(p => p.tipo === 'receita').map(p => {
     const items = receitas.filter(l => l.conta_id === p.id);
@@ -1015,21 +1254,14 @@ function RelatorioVendas({ lancamentos, clientes, plano }) {
 
   const margemColor = m => m >= 60 ? TEAL_D : m >= 35 ? AMBER : RED;
 
-  const chartMs = getMonths(6, -5);
-  const chartData = chartMs.map(m => ({
+  const chartData = periodoMeses.map(m => ({
     name: ml(m),
     MRR: +lancamentos.filter(l => l.tipo === 'receita' && mk(l.dt_competencia) === m).reduce((s, l) => s + l.valor, 0).toFixed(2),
   }));
 
   return (
     <div>
-      <PageHeader title="Vendas por Serviço" action={
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <span style={{ fontSize: 13, color: 'var(--color-text-secondary)' }}>Período:</span>
-          <input type="month" value={periodo} onChange={e => setPeriodo(e.target.value)} style={{ ...S.inp, width: 148, padding: '7px 10px', fontSize: 13 }} />
-          {periodo && <button onClick={() => setPeriodo('')} style={S.sm('var(--color-background-secondary)', 'var(--color-text-secondary)')}>× Limpar</button>}
-        </div>
-      } />
+      <PageHeader title="Vendas por Serviço" action={<span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{ml(globalPeriodo.start)} — {ml(globalPeriodo.end)}</span>} />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
         <KpiCard label="Receita Total" val={fmt(totalGeral)} color={TEAL} />
@@ -1093,9 +1325,11 @@ function RelatorioVendas({ lancamentos, clientes, plano }) {
 // ═══════════════════════════════════════════════════════
 // CICLO FINANCEIRO
 // ═══════════════════════════════════════════════════════
-function CicloFinanceiro({ lancamentos, clientes, plano }) {
+function CicloFinanceiro({ lancamentos, clientes, plano, periodo }) {
+  const periodoMeses = buildMonthRange(periodo.start, periodo.end);
   const realizadas = tipo => lancamentos.filter(l =>
-    l.tipo === tipo && l.status === 'realizado' && l.dt_competencia && l.dt_caixa_realizada
+    l.tipo === tipo && l.status === 'realizado' && l.dt_competencia && l.dt_caixa_realizada &&
+    periodoMeses.includes(mk(l.dt_competencia))
   );
 
   const avgDias = items => {
@@ -1355,6 +1589,54 @@ function LogAuditoria({ auditLog, users }) {
 }
 
 // ═══════════════════════════════════════════════════════
+// BARRA DE PERÍODO GLOBAL
+// ═══════════════════════════════════════════════════════
+function PeriodoBar({ periodo, setPeriodo }) {
+  const monthRange = buildMonthRange(periodo.start, periodo.end);
+  const inp = { background: 'rgba(255,255,255,.08)', border: '0.5px solid rgba(255,255,255,.2)', borderRadius: 6, color: '#fff', padding: '4px 10px', fontSize: 12, fontFamily: 'inherit', cursor: 'pointer' };
+
+  const setQuick = (offset, count) => {
+    const ms = getMonths(count, offset);
+    setPeriodo({ start: ms[0], end: ms[ms.length - 1] });
+  };
+
+  const shortcuts = [
+    { label: '1M',  title: 'Este mês',         fn: () => setQuick(0, 1) },
+    { label: '3M',  title: 'Últimos 3 meses',  fn: () => setQuick(-2, 3) },
+    { label: '6M',  title: 'Últimos 6 meses',  fn: () => setQuick(-5, 6) },
+    { label: '12M', title: 'Últimos 12 meses', fn: () => setQuick(-11, 12) },
+    { label: 'Ano', title: `${new Date().getFullYear()}`, fn: () => setPeriodo({ start: `${new Date().getFullYear()}-01`, end: today().slice(0, 7) }) },
+  ];
+
+  const active = shortcuts.find(s => {
+    const test = getMonths(parseInt(s.label) || 12, s.label === 'Ano' ? -(new Date().getMonth()) : -(parseInt(s.label)-1));
+    if (s.label === 'Ano') return periodo.start === `${new Date().getFullYear()}-01`;
+    if (!parseInt(s.label)) return false;
+    const ms = getMonths(parseInt(s.label), -(parseInt(s.label)-1));
+    return periodo.start === ms[0] && periodo.end === ms[ms.length-1];
+  })?.label;
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 24px', background: '#0a1832', borderBottom: '0.5px solid rgba(0,196,216,.18)', flexWrap: 'wrap', flexShrink: 0 }}>
+      <span style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.12em', color: TEAL, whiteSpace: 'nowrap' }}>PERÍODO</span>
+      <input type="month" value={periodo.start} onChange={e => setPeriodo(p => ({ ...p, start: e.target.value }))} style={inp} />
+      <span style={{ color: 'rgba(255,255,255,.35)', fontSize: 14 }}>→</span>
+      <input type="month" value={periodo.end} onChange={e => setPeriodo(p => ({ ...p, end: e.target.value }))} style={inp} />
+      <span style={{ fontSize: 11, color: 'rgba(255,255,255,.3)', whiteSpace: 'nowrap' }}>
+        {monthRange.length} {monthRange.length === 1 ? 'mês' : 'meses'}
+      </span>
+      <div style={{ width: 1, height: 14, background: 'rgba(255,255,255,.1)', margin: '0 2px' }} />
+      {shortcuts.map(s => (
+        <button key={s.label} onClick={s.fn} title={s.title}
+          style={{ background: active === s.label ? `${TEAL}33` : 'rgba(255,255,255,.06)', border: `0.5px solid ${active === s.label ? TEAL : 'rgba(255,255,255,.14)'}`, borderRadius: 5, color: active === s.label ? TEAL : 'rgba(255,255,255,.5)', padding: '3px 9px', fontSize: 11, cursor: 'pointer', fontFamily: 'inherit', fontWeight: active === s.label ? 600 : 400 }}>
+          {s.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
 // APP PRINCIPAL
 // ═══════════════════════════════════════════════════════
 export default function PrumaFinanceiro() {
@@ -1368,6 +1650,7 @@ export default function PrumaFinanceiro() {
   const [plano, setPlano]           = useState(P0);
   const [extratos, setExtratos]     = useState([]);
   const [auditLog, setAuditLog]     = useState([]);
+  const [periodo, setPeriodo]       = useState({ start: getMonths(6, -5)[0], end: today().slice(0, 7) });
 
   useEffect(() => {
     (async () => {
@@ -1417,13 +1700,17 @@ export default function PrumaFinanceiro() {
     }} />
   );
 
-  const shared = { lancamentos, clientes, plano, extratos, auditLog, users, currentUser, addAudit, saveLanc, saveCli, savePlano };
+  const shared = { lancamentos, clientes, plano, extratos, auditLog, users, currentUser, periodo, addAudit, saveLanc, saveCli, savePlano };
+
+  // Pages that should NOT show the period bar
+  const noPeriodo = ['clientes', 'plano', 'conciliacao', 'audit'];
 
   return (
     <div style={{ display: 'flex', fontFamily: 'var(--font-sans)', minHeight: '100vh' }}>
       <Sidebar page={page} setPage={p => { setPage(p); }} user={currentUser} onLogout={() => setCurrentUser(null)} />
-      <div style={{ flex: 1, background: 'var(--color-background-secondary)', overflowY: 'auto', minHeight: '100vh' }}>
-        <div style={{ padding: 24, maxWidth: 1200 }}>
+      <div style={{ flex: 1, background: 'var(--color-background-secondary)', overflowY: 'auto', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        {!noPeriodo.includes(page) && <PeriodoBar periodo={periodo} setPeriodo={setPeriodo} />}
+        <div style={{ padding: 24, maxWidth: 1200, flex: 1 }}>
           {page === 'dashboard'   && <Dashboard   {...shared} />}
           {page === 'lancamentos' && <Lancamentos  {...shared} />}
           {page === 'clientes'    && <Clientes     {...shared} />}
