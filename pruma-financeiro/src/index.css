@@ -1,0 +1,51 @@
+/* ═══════════════════════════════════════════════
+   PRUMA FINANCEIRO — Global Styles
+   ═══════════════════════════════════════════════ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+:root {
+  /* Cores de fundo */
+  --color-background-primary:   #ffffff;
+  --color-background-secondary: #f4f4f2;
+
+  /* Texto */
+  --color-text-primary:   #111827;
+  --color-text-secondary: #6b7280;
+
+  /* Bordas */
+  --color-border-primary:   #9ca3af;
+  --color-border-secondary: #d1d5db;
+  --color-border-tertiary:  #e5e7eb;
+
+  /* Tipografia */
+  --font-sans: 'Geist', 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  font-family: var(--font-sans);
+  background: var(--color-background-secondary);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbar sutil */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+
+/* Reset inputs e selects */
+input, select, button {
+  font-family: inherit;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.5;
+  cursor: pointer;
+}
