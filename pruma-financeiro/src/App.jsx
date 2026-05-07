@@ -4,7 +4,6 @@ import {
   BarChart, Bar, AreaChart, Area, LineChart, Line,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
-import * as XLSX from "xlsx";
 
 // ═══════════════════════════════════════════════════════
 // CONSTANTS
@@ -84,6 +83,23 @@ const stLoad = async (key, def) => {
 const stSave = async (key, val) => {
   try { await window.storage.set(key, JSON.stringify(val), true); } catch {}
 };
+// ─── CSV Export ───────────────────────────────────────
+const exportCSV = (rows, filename) => {
+  const csv = rows.map(row =>
+    row.map(cell => {
+      const v = cell == null ? '' : String(cell);
+      return v.includes(',') || v.includes('"') || v.includes('\n')
+        ? '"' + v.replace(/"/g, '""') + '"' : v;
+    }).join(',')
+  ).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+};
+
+
 
 // ═══════════════════════════════════════════════════════
 // STYLE TOKENS
@@ -880,10 +896,7 @@ function DRE({ lancamentos, plano, periodo }) {
       }
     }
     if (showAV) rows[0] = ['Conta', ...monthRange.flatMap(m => [ml(m), 'AV%']), 'Total'];
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'DRE');
-    XLSX.writeFile(wb, `DRE_Pruma_${startMonth}_${endMonth}.xlsx`);
+    exportCSV(rows, `DRE_Pruma_${startMonth}_${endMonth}.csv`);
   };
 
   const toggleBtn = (active, label, onClick, color = BLUE) =>
@@ -897,7 +910,7 @@ function DRE({ lancamentos, plano, periodo }) {
           <input type="month" value={startMonth} onChange={e => setStartMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
           <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Até:</span>
           <input type="month" value={endMonth} onChange={e => setEndMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
-          <button onClick={exportExcel} style={S.btn(TEAL_D)}>↓ Excel</button>
+          <button onClick={exportExcel} style={S.btn(TEAL_D)}>↓ CSV</button>
         </div>
       } />
 
@@ -1044,10 +1057,7 @@ function FluxoCaixa({ lancamentos, periodo }) {
       const vals = monthData.map(r => tr.fn(r));
       return [tr.label, ...vals, tr.key === 'si' || tr.key === 'sf' ? '' : vals.reduce((a, b) => a + b, 0)];
     })];
-    const ws = XLSX.utils.aoa_to_sheet(rows);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Fluxo de Caixa');
-    XLSX.writeFile(wb, `FluxoCaixa_Pruma_${startMonth}_${endMonth}.xlsx`);
+    exportCSV(rows, `FluxoCaixa_Pruma_${startMonth}_${endMonth}.csv`);
   };
 
   const chartData = monthData.map(r => ({
@@ -1065,7 +1075,7 @@ function FluxoCaixa({ lancamentos, periodo }) {
           <input type="month" value={startMonth} onChange={e => setStartMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
           <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Até:</span>
           <input type="month" value={endMonth} onChange={e => setEndMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
-          <button onClick={exportExcel} style={S.btn(TEAL_D)}>↓ Excel</button>
+          <button onClick={exportExcel} style={S.btn(TEAL_D)}>↓ CSV</button>
         </div>
       } />
 
