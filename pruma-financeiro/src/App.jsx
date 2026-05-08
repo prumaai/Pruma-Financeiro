@@ -37,6 +37,7 @@ const DARK = '#0B1E3F'; // Azul Marinho
 const K = {
   users: 'pf_users', lanc: 'pf_lanc', cli: 'pf_cli',
   plano: 'pf_plano_v2', ext: 'pf_ext', audit: 'pf_audit',
+  colab: 'pf_colab', premissas: 'pf_premissas', recorr: 'pf_recorr',
 };
 
 const U0 = [
@@ -343,15 +344,18 @@ function Sidebar({ page, setPage, user, onLogout }) {
     { sec: 'Operacional' },
     { id: 'dashboard',    label: 'Dashboard',           icon: '▦' },
     { id: 'lancamentos',  label: 'Lançamentos',          icon: '⊟' },
+    { id: 'recorrentes',  label: 'Recorrentes',          icon: '↺' },
     { id: 'clientes',     label: 'Clientes',             icon: '⊡' },
     { sec: 'Cadastros' },
     { id: 'plano',        label: 'Plano de Contas',      icon: '⊞' },
+    { id: 'colaboradores',label: 'Colaboradores',        icon: '👥' },
     { sec: 'Relatórios' },
     { id: 'dre',          label: 'DRE',                  icon: '↑' },
     { id: 'fluxo',        label: 'Fluxo de Caixa',       icon: '≈' },
     { id: 'crp',          label: 'C. Receber / Pagar',   icon: '↕' },
     { id: 'vendas',       label: 'Vendas por Serviço',   icon: '◈' },
     { id: 'ciclo',        label: 'Ciclo Financeiro',     icon: '⟳' },
+    { id: 'simulador',    label: 'Simulador Preço',      icon: '⚖' },
     { sec: 'Ferramentas' },
     { id: 'conciliacao',  label: 'Conciliação Bancária', icon: '≡' },
     { id: 'audit',        label: 'Log de Auditoria',     icon: '⌕' },
@@ -476,17 +480,18 @@ function Dashboard({ lancamentos, clientes, periodo }) {
 // LANÇAMENTOS
 // ═══════════════════════════════════════════════════════
 // ── Bloco de Estrutura de Custos (usado no form de Lançamentos) ──
-function CostBlock({ form, setF, calcCustos, plano }) {
+function CostBlock({ form, setF, calcCustos, plano, colaboradores = [], premissas = {} }) {
   const custos = calcCustos(form);
   const despConta = plano.filter(p => p.tipo === 'despesa');
   const nAtivos = [form.comissao_ativo, form.imposto_ativo].filter(Boolean).length;
+  const colabsComissao = colaboradores.filter(c => c.tipo === 'operacional' || c.tipo === 'vendas');
 
   const Row = ({ id, label, children }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--color-border-tertiary)', flexWrap: 'wrap' }}>
       <label htmlFor={id} style={{ fontWeight: 500, fontSize: 13, minWidth: 80, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
         <input type="checkbox" id={id}
-          checked={id === 'chk-com' ? !!form.comissao_ativo : id === 'chk-imp' ? !!form.imposto_ativo : !!form.boleto_ativo}
-          onChange={e => setF(id === 'chk-com' ? 'comissao_ativo' : id === 'chk-imp' ? 'imposto_ativo' : 'boleto_ativo', e.target.checked)}
+          checked={id === 'chk-com' ? !!form.comissao_ativo : !!form.imposto_ativo}
+          onChange={e => setF(id === 'chk-com' ? 'comissao_ativo' : 'imposto_ativo', e.target.checked)}
           style={{ width: 15, height: 15, cursor: 'pointer', accentColor: TEAL }} />
         {label}
       </label>
@@ -503,6 +508,16 @@ function CostBlock({ form, setF, calcCustos, plano }) {
       {/* Comissão */}
       <Row id="chk-com" label="Comissão">
         {form.comissao_ativo && <>
+          {colabsComissao.length > 0 && (
+            <select value={form.comissao_colab_id || ''} onChange={e => {
+              const c = colaboradores.find(x => x.id === e.target.value);
+              setF('comissao_colab_id', e.target.value);
+              if (c?.comissao_pct) setF('comissao_pct', String(c.comissao_pct));
+            }} style={{ ...S.inp, minWidth: 140, fontSize: 11 }}>
+              <option value="">Colaborador...</option>
+              {colabsComissao.map(c => <option key={c.id} value={c.id}>{c.nome} ({c.comissao_pct}%)</option>)}
+            </select>
+          )}
           <input type="number" value={form.comissao_pct || ''} onChange={e => setF('comissao_pct', e.target.value)}
             style={{ ...S.inp, width: 70 }} placeholder="%" min="0" max="100" step="0.1" />
           <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>%</span>
@@ -518,11 +533,11 @@ function CostBlock({ form, setF, calcCustos, plano }) {
       {/* Imposto */}
       <Row id="chk-imp" label="Imposto">
         {form.imposto_ativo && <>
-          <input type="number" value={form.imposto_pct || ''} onChange={e => setF('imposto_pct', e.target.value)}
+          <input type="number" value={form.imposto_pct || premissas.imposto_pct || ''} onChange={e => setF('imposto_pct', e.target.value)}
             style={{ ...S.inp, width: 70 }} placeholder="%" min="0" max="100" step="0.1" />
           <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>%</span>
           <span style={{ fontSize: 12, fontWeight: 600, color: RED, minWidth: 90 }}>= {fmt(custos.imposto)}</span>
-          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>→ 2.1 Impostos · lançado 1x no mês de competência</span>
+          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>→ 2.1 Impostos · +1m no caixa</span>
         </>}
       </Row>
 
@@ -745,7 +760,7 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
           </div>
 
           {/* ── Estrutura de Custos (só para Receitas) ── */}
-          {form.tipo === 'receita' && <CostBlock form={form} setF={setF} calcCustos={calcCustos} plano={plano} />}
+          {form.tipo === 'receita' && <CostBlock form={form} setF={setF} calcCustos={calcCustos} plano={plano} colaboradores={colaboradores} premissas={premissas} />}
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
             <Field label="Data de Competência *">
@@ -1582,90 +1597,149 @@ function ContasReceberPagar({ lancamentos, clientes, plano, currentUser, addAudi
 // RELATÓRIO DE VENDAS POR SERVIÇO
 // ═══════════════════════════════════════════════════════
 function RelatorioVendas({ lancamentos, clientes, plano, periodo: globalPeriodo }) {
-  const periodoMeses = buildMonthRange(globalPeriodo.start, globalPeriodo.end);
+  const [startMonth, setStartMonth] = useState(globalPeriodo.start);
+  const [endMonth, setEndMonth]     = useState(globalPeriodo.end);
+  useEffect(() => { setStartMonth(globalPeriodo.start); setEndMonth(globalPeriodo.end); }, [globalPeriodo.start, globalPeriodo.end]);
+  const periodoMeses = buildMonthRange(startMonth, endMonth);
 
-  const receitas = lancamentos.filter(l => l.tipo === 'receita' && periodoMeses.includes(mk(l.dt_competencia)));
+  // LÓGICA COMERCIAL: agrupa lançamentos de receita pelo projeto original
+  // Para parcelados (descrição com " (N/N)"), considera o valor TOTAL do projeto
+  // e atribui ao mês da PRIMEIRA parcela (data da venda)
+  const vendas = useMemo(() => {
+    const receitas = lancamentos.filter(l => l.tipo === 'receita');
+    const grupos = {};
 
-  const byServico = plano.filter(p => p.tipo === 'receita').map(p => {
-    const items = receitas.filter(l => l.conta_id === p.id);
-    const total  = items.reduce((s, l) => s + l.valor, 0);
-    const custo  = items.reduce((s, l) => s + (l.custo || 0), 0);
-    const meses  = new Set(items.map(l => mk(l.dt_competencia)));
-    return { nome: p.nome, total, custo, margem: total > 0 ? (total - custo) / total * 100 : 0, ticket: meses.size > 0 ? total / meses.size : 0, qtd: items.length };
-  }).filter(r => r.total > 0).sort((a, b) => b.total - a.total);
+    receitas.forEach(l => {
+      // Extrai base key: remove sufixo " (N/N)" para agrupar parcelas
+      const baseKey = l.descricao.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim() + '|' + (l.cliente_id || '') + '|' + (l.conta_id || '');
+      if (!grupos[baseKey]) grupos[baseKey] = [];
+      grupos[baseKey].push(l);
+    });
 
-  const byCliente = clientes.map(c => {
-    const items = receitas.filter(l => l.cliente_id === c.id);
-    const total  = items.reduce((s, l) => s + l.valor, 0);
-    const custo  = items.reduce((s, l) => s + (l.custo || 0), 0);
-    const meses  = new Set(items.map(l => mk(l.dt_competencia)));
-    return { nome: c.nome, tipo: c.tipo, total, custo, margem: total > 0 ? (total - custo) / total * 100 : 0, ticket: meses.size > 0 ? total / meses.size : 0 };
-  }).filter(r => r.total > 0).sort((a, b) => b.total - a.total);
+    return Object.values(grupos).map(items => {
+      // Mês da venda = competência mais antiga do grupo
+      const sorted = [...items].sort((a, b) => (a.dt_competencia || '').localeCompare(b.dt_competencia || ''));
+      const mesVenda = mk(sorted[0].dt_competencia);
+      const totalReceita = items.reduce((s, l) => s + l.valor, 0);
+      const totalCusto   = items.reduce((s, l) => s + (l.custo || 0), 0);
+      const conta   = plano.find(p => p.id === sorted[0].conta_id);
+      const cliente = clientes.find(c => c.id === sorted[0].cliente_id);
+      const nParcelas = items.length;
+      return { mesVenda, totalReceita, totalCusto, conta, cliente, nParcelas, descricao: sorted[0].descricao.replace(/\s*\(\d+\/\d+\)\s*$/, '').trim() };
+    }).filter(v => periodoMeses.includes(v.mesVenda))
+      .sort((a, b) => b.mesVenda.localeCompare(a.mesVenda) || b.totalReceita - a.totalReceita);
+  }, [lancamentos, plano, clientes, periodoMeses]);
 
-  const totalGeral = receitas.reduce((s, l) => s + l.valor, 0);
-  const custoGeral = receitas.reduce((s, l) => s + (l.custo || 0), 0);
+  const totalGeral  = vendas.reduce((s, v) => s + v.totalReceita, 0);
+  const custoGeral  = vendas.reduce((s, v) => s + v.totalCusto, 0);
   const margemGeral = totalGeral > 0 ? (totalGeral - custoGeral) / totalGeral * 100 : 0;
-
   const margemColor = m => m >= 60 ? TEAL_D : m >= 35 ? AMBER : RED;
 
-  const chartData = periodoMeses.map(m => ({
+  // Agrupado por mês para o chart
+  const byMes = periodoMeses.map(m => ({
     name: ml(m),
-    MRR: +lancamentos.filter(l => l.tipo === 'receita' && mk(l.dt_competencia) === m).reduce((s, l) => s + l.valor, 0).toFixed(2),
+    Vendas: +vendas.filter(v => v.mesVenda === m).reduce((s, v) => s + v.totalReceita, 0).toFixed(2),
   }));
+
+  // Agrupado por tipo de serviço (conta)
+  const byServico = plano.filter(p => p.tipo === 'receita').map(p => {
+    const items = vendas.filter(v => v.conta?.id === p.id);
+    const total = items.reduce((s, v) => s + v.totalReceita, 0);
+    const custo = items.reduce((s, v) => s + v.totalCusto, 0);
+    return { nome: p.nome, total, custo, margem: total > 0 ? (total - custo) / total * 100 : 0, qtd: items.length };
+  }).filter(r => r.total > 0).sort((a, b) => b.total - a.total);
+
+  // Por cliente
+  const byCliente = clientes.map(c => {
+    const items = vendas.filter(v => v.cliente?.id === c.id);
+    const total = items.reduce((s, v) => s + v.totalReceita, 0);
+    const custo = items.reduce((s, v) => s + v.totalCusto, 0);
+    return { nome: c.nome, tipo: c.tipo, total, custo, margem: total > 0 ? (total - custo) / total * 100 : 0, qtd: items.length };
+  }).filter(r => r.total > 0).sort((a, b) => b.total - a.total);
 
   return (
     <div>
-      <PageHeader title="Vendas por Serviço" action={<span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>{ml(globalPeriodo.start)} — {ml(globalPeriodo.end)}</span>} />
+      <PageHeader title="Relatório de Vendas" action={
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input type="month" value={startMonth} onChange={e => setStartMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
+          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>até</span>
+          <input type="month" value={endMonth} onChange={e => setEndMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
+        </div>
+      } />
+
+      <div style={{ ...S.card, marginBottom: 16, padding: '10px 14px', fontSize: 11, color: 'var(--color-text-secondary)', background: BLUE_L }}>
+        ℹ️ Este relatório considera o <strong>valor total de cada venda no mês em que foi fechada</strong>, independente do parcelamento. Para visualização mês a mês, use a DRE.
+      </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
-        <KpiCard label="Receita Total" val={fmt(totalGeral)} color={TEAL} />
+        <KpiCard label="Volume de Vendas" val={fmt(totalGeral)} color={TEAL} sub={`${vendas.length} projetos`} />
         <KpiCard label="Custo Total" val={fmt(custoGeral)} color={RED} />
-        <KpiCard label="Margem Média" val={margemGeral.toFixed(1) + '%'} color={margemColor(margemGeral)} sub={`Margem bruta — ${receitas.length} lançamentos`} />
+        <KpiCard label="Margem Média" val={margemGeral.toFixed(1) + '%'} color={margemColor(margemGeral)} />
       </div>
 
       <div style={{ ...S.card, marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 16 }}>Receita mensal — últimos 6 meses</div>
+        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>Volume de vendas por mês</div>
         <ResponsiveContainer width="100%" height={160}>
-          <BarChart data={chartData}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-tertiary)" /><XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={65} tickFormatter={v => 'R$' + Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v)} /><Tooltip formatter={v => [fmt(v), 'Receita']} /><Bar dataKey="MRR" fill={TEAL} radius={[4,4,0,0]} /></BarChart>
+          <BarChart data={byMes}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-tertiary)" /><XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} /><YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={65} tickFormatter={v => 'R$' + Intl.NumberFormat('pt-BR', { notation: 'compact' }).format(v)} /><Tooltip formatter={v => [fmt(v), 'Vendas']} /><Bar dataKey="Vendas" fill={TEAL} radius={[4,4,0,0]} /></BarChart>
         </ResponsiveContainer>
+      </div>
+
+      {/* Tabela de vendas */}
+      <div style={{ ...S.card, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 14 }}>Vendas no período</div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr>{['Mês','Projeto','Cliente','Serviço','Valor Total','Custo','Margem','Parcelas'].map(h => <th key={h} style={S.TH}>{h}</th>)}</tr></thead>
+          <tbody>
+            {vendas.length === 0 && <EmptyRow cols={8} msg="Nenhuma venda no período." />}
+            {vendas.map((v, i) => {
+              const margem = v.totalReceita > 0 ? (v.totalReceita - v.totalCusto) / v.totalReceita * 100 : 0;
+              return (
+                <tr key={i}>
+                  <td style={{ ...S.TD, fontSize: 11, whiteSpace: 'nowrap' }}>{ml(v.mesVenda)}</td>
+                  <td style={{ ...S.TD, fontWeight: 500, fontSize: 12 }}>{v.descricao}</td>
+                  <td style={{ ...S.TD, fontSize: 12 }}>{v.cliente?.nome || '—'}</td>
+                  <td style={{ ...S.TD, fontSize: 11, color: 'var(--color-text-secondary)' }}>{v.conta?.nome || '—'}</td>
+                  <td style={{ ...S.TD, fontWeight: 700, color: TEAL_D }}>{fmt(v.totalReceita)}</td>
+                  <td style={{ ...S.TD, fontSize: 12, color: RED }}>{fmt(v.totalCusto)}</td>
+                  <td style={S.TD}><span style={{ fontWeight: 700, color: margemColor(margem) }}>{margem.toFixed(1)}%</span></td>
+                  <td style={{ ...S.TD, fontSize: 11, color: 'var(--color-text-secondary)' }}>{v.nParcelas > 1 ? `${v.nParcelas}x ${fmt(v.totalReceita/v.nParcelas)}` : 'À vista'}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div style={S.card}>
           <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 14 }}>Por Tipo de Serviço</div>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr>{['Serviço','Total','Custo','Margem','Ticket/Mês'].map(h => <th key={h} style={S.TH}>{h}</th>)}</tr></thead>
+            <thead><tr>{['Serviço','Qtd','Total','Margem'].map(h => <th key={h} style={S.TH}>{h}</th>)}</tr></thead>
             <tbody>
-              {byServico.length === 0 && <EmptyRow cols={5} msg="Nenhuma receita no período." />}
+              {byServico.length === 0 && <EmptyRow cols={4} msg="—" />}
               {byServico.map(r => (
                 <tr key={r.nome}>
                   <td style={{ ...S.TD, fontSize: 12, fontWeight: 500 }}>{r.nome}</td>
+                  <td style={{ ...S.TD, fontSize: 12 }}>{r.qtd}</td>
                   <td style={{ ...S.TD, fontWeight: 600, color: TEAL_D }}>{fmt(r.total)}</td>
-                  <td style={{ ...S.TD, fontSize: 12, color: RED }}>{fmt(r.custo)}</td>
                   <td style={S.TD}><span style={{ fontWeight: 700, color: margemColor(r.margem) }}>{r.margem.toFixed(1)}%</span></td>
-                  <td style={{ ...S.TD, fontSize: 12 }}>{fmt(r.ticket)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-
         <div style={S.card}>
           <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 14 }}>Por Cliente</div>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr>{['Cliente','Total','Custo','Margem','Ticket/Mês'].map(h => <th key={h} style={S.TH}>{h}</th>)}</tr></thead>
+            <thead><tr>{['Cliente','Qtd','Total','Margem'].map(h => <th key={h} style={S.TH}>{h}</th>)}</tr></thead>
             <tbody>
-              {byCliente.length === 0 && <EmptyRow cols={5} msg="Nenhuma receita no período." />}
+              {byCliente.length === 0 && <EmptyRow cols={4} msg="—" />}
               {byCliente.map(r => (
                 <tr key={r.nome}>
-                  <td style={S.TD}>
-                    <div style={{ fontSize: 12, fontWeight: 500 }}>{r.nome}</div>
-                    <span style={S.tag(r.tipo === 'retainer' ? BLUE_L : AMBER_L, r.tipo === 'retainer' ? BLUE : AMBER)}>{r.tipo === 'retainer' ? 'Retainer' : 'Avulso'}</span>
-                  </td>
+                  <td style={{ ...S.TD, fontSize: 12, fontWeight: 500 }}>{r.nome}</td>
+                  <td style={{ ...S.TD, fontSize: 12 }}>{r.qtd}</td>
                   <td style={{ ...S.TD, fontWeight: 600, color: TEAL_D }}>{fmt(r.total)}</td>
-                  <td style={{ ...S.TD, fontSize: 12, color: RED }}>{fmt(r.custo)}</td>
                   <td style={S.TD}><span style={{ fontWeight: 700, color: margemColor(r.margem) }}>{r.margem.toFixed(1)}%</span></td>
-                  <td style={{ ...S.TD, fontSize: 12 }}>{fmt(r.ticket)}</td>
                 </tr>
               ))}
             </tbody>
@@ -2222,6 +2296,449 @@ function Conciliacao({ lancamentos, clientes, plano, currentUser, addAudit, save
 // ═══════════════════════════════════════════════════════
 // LOG DE AUDITORIA
 // ═══════════════════════════════════════════════════════
+
+// ═══════════════════════════════════════════════════════
+// COLABORADORES
+// ═══════════════════════════════════════════════════════
+function Colaboradores({ colaboradores, premissas, lancamentos, currentUser, addAudit, saveColabs, savePremissas }) {
+  const [tab, setTab] = useState('equipe'); // 'equipe' | 'pagamentos' | 'premissas'
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const [mesPag, setMesPag] = useState(today().slice(0, 7));
+
+  const emptyColab = { nome: '', cargo: '', tipo: 'operacional', comissao_pct: '', salario_fixo: '' };
+
+  const onSave = async () => {
+    if (!form.nome?.trim()) return alert('Nome é obrigatório.');
+    const item = { ...form, id: form.id || uid(), comissao_pct: +form.comissao_pct || 0, salario_fixo: +form.salario_fixo || 0 };
+    const isNew = !form.id;
+    const next = isNew ? [...colaboradores, item] : colaboradores.map(c => c.id === item.id ? item : c);
+    await saveColabs(next);
+    await addAudit(isNew ? 'Criou colaborador' : 'Editou colaborador', 'Colaboradores', item.nome);
+    setModal(false);
+  };
+
+  const onDel = async (id, nome) => {
+    if (!confirm(`Excluir "${nome}"?`)) return;
+    await saveColabs(colaboradores.filter(c => c.id !== id));
+    await addAudit('Excluiu colaborador', 'Colaboradores', nome);
+  };
+
+  const tipoLabel = { operacional: 'Operacional', admin: 'Administrativo', vendas: 'Vendas' };
+  const tipoColor = { operacional: TEAL, admin: BLUE, vendas: AMBER };
+
+  // Calcula quanto deve receber cada colaborador no mês
+  const pagamentos = colaboradores.map(col => {
+    let total = 0;
+    const detalhes = [];
+
+    if (col.tipo === 'admin') {
+      total = col.salario_fixo || 0;
+      detalhes.push({ desc: 'Salário fixo', valor: total });
+    } else {
+      // Soma comissões de lançamentos do mês onde o colaborador_id bate
+      const comissaoLancs = lancamentos.filter(l =>
+        l.tipo === 'despesa' &&
+        l.comissao_colab_id === col.id &&
+        mk(l.dt_competencia) === mesPag
+      );
+      const totalComissao = comissaoLancs.reduce((s, l) => s + l.valor, 0);
+      total = totalComissao;
+      comissaoLancs.forEach(l => detalhes.push({ desc: l.descricao, valor: l.valor }));
+    }
+    return { ...col, total, detalhes };
+  });
+
+  const totalFolha = pagamentos.reduce((s, c) => s + c.total, 0);
+
+  return (
+    <div>
+      <PageHeader title="Colaboradores" />
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        {[['equipe','👥 Equipe'],['pagamentos','💰 Pagamentos do Mês'],['premissas','⚙️ Premissas']].map(([v,l]) => (
+          <button key={v} onClick={() => setTab(v)} style={S.sm(tab===v ? TEAL : 'var(--color-background-primary)', tab===v ? '#fff' : 'var(--color-text-secondary)')}>{l}</button>
+        ))}
+      </div>
+
+      {/* EQUIPE */}
+      {tab === 'equipe' && (
+        <div style={S.card}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 500 }}>Equipe cadastrada</div>
+            <button onClick={() => { setForm(emptyColab); setModal(true); }} style={S.btn(TEAL)}>+ Novo Colaborador</button>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead><tr>{['Nome','Cargo','Tipo','Remuneração','Ações'].map(h => <th key={h} style={S.TH}>{h}</th>)}</tr></thead>
+            <tbody>
+              {colaboradores.length === 0 && <EmptyRow cols={5} msg="Nenhum colaborador cadastrado." />}
+              {colaboradores.map(c => (
+                <tr key={c.id}>
+                  <td style={{ ...S.TD, fontWeight: 500 }}>{c.nome}</td>
+                  <td style={{ ...S.TD, fontSize: 12, color: 'var(--color-text-secondary)' }}>{c.cargo}</td>
+                  <td style={S.TD}><span style={S.tag(tipoColor[c.tipo]+'22', tipoColor[c.tipo])}>{tipoLabel[c.tipo]}</span></td>
+                  <td style={S.TD}>
+                    {c.tipo === 'admin'
+                      ? <span style={{ fontWeight: 600 }}>Fixo — {fmt(c.salario_fixo || 0)}/mês</span>
+                      : <span style={{ fontWeight: 600, color: TEAL_D }}>{c.comissao_pct}% de comissão</span>}
+                  </td>
+                  <td style={S.TD}>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => { setForm({ ...c }); setModal(true); }} style={S.sm('var(--color-background-secondary)', 'var(--color-text-secondary)')}>✎</button>
+                      <button onClick={() => onDel(c.id, c.nome)} style={S.sm(RED_L, RED)}>✕</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {/* PAGAMENTOS */}
+      {tab === 'pagamentos' && (
+        <div>
+          <div style={{ ...S.card, marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
+            <label style={{ ...S.lbl, marginBottom: 0 }}>Mês de referência:</label>
+            <input type="month" value={mesPag} onChange={e => setMesPag(e.target.value)} style={{ ...S.inp, width: 160 }} />
+            <div style={{ flex: 1 }} />
+            <div style={{ fontSize: 13 }}>Total da folha: <strong style={{ color: RED, fontSize: 16 }}>{fmt(totalFolha)}</strong></div>
+          </div>
+          <div style={S.card}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead><tr>{['Colaborador','Tipo','Detalhes','Total a Pagar'].map(h => <th key={h} style={S.TH}>{h}</th>)}</tr></thead>
+              <tbody>
+                {pagamentos.length === 0 && <EmptyRow cols={4} msg="Nenhum colaborador." />}
+                {pagamentos.map(c => (
+                  <tr key={c.id} style={{ background: c.total > 0 ? AMBER_L : 'transparent' }}>
+                    <td style={{ ...S.TD, fontWeight: 500 }}>{c.nome}<div style={{ fontSize: 10, color: 'var(--color-text-secondary)' }}>{c.cargo}</div></td>
+                    <td style={S.TD}><span style={S.tag(tipoColor[c.tipo]+'22', tipoColor[c.tipo])}>{tipoLabel[c.tipo]}</span></td>
+                    <td style={{ ...S.TD, fontSize: 11, color: 'var(--color-text-secondary)' }}>
+                      {c.detalhes.length === 0 ? '—' : c.detalhes.map((d,i) => <div key={i}>{d.desc}: {fmt(d.valor)}</div>)}
+                    </td>
+                    <td style={{ ...S.TD, fontWeight: 700, fontSize: 15, color: c.total > 0 ? RED : 'var(--color-text-secondary)' }}>{fmt(c.total)}</td>
+                  </tr>
+                ))}
+                <tr style={{ background: 'var(--color-background-secondary)', borderTop: '2px solid var(--color-border-tertiary)' }}>
+                  <td colSpan={3} style={{ ...S.TD, fontWeight: 700 }}>TOTAL</td>
+                  <td style={{ ...S.TD, fontWeight: 800, fontSize: 16, color: RED }}>{fmt(totalFolha)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* PREMISSAS */}
+      {tab === 'premissas' && (
+        <div style={S.card}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 20 }}>Premissas Globais</div>
+          <div style={{ maxWidth: 400, display: 'grid', gap: 16 }}>
+            <Field label="Alíquota de Imposto padrão (%)">
+              <input type="number" value={premissas.imposto_pct || ''} min="0" max="100" step="0.1"
+                onChange={e => savePremissas({ ...premissas, imposto_pct: +e.target.value })}
+                style={S.inp} placeholder="ex: 6" />
+              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 4 }}>
+                Será preenchido automaticamente no formulário de lançamento quando "Imposto" for marcado.
+              </div>
+            </Field>
+          </div>
+          <div style={{ marginTop: 24, padding: 14, background: 'var(--color-background-secondary)', borderRadius: 8, fontSize: 12, color: 'var(--color-text-secondary)' }}>
+            <strong>Como funciona:</strong> Ao salvar, a alíquota é aplicada automaticamente como valor padrão no formulário de lançamento. Você ainda pode sobrescrever manualmente por lançamento.
+          </div>
+        </div>
+      )}
+
+      {modal && (
+        <Modal title={form.id ? 'Editar Colaborador' : 'Novo Colaborador'} onClose={() => setModal(false)} width={440}>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <Field label="Nome *"><input value={form.nome || ''} onChange={e => setF('nome', e.target.value)} style={S.inp} autoFocus /></Field>
+            <Field label="Cargo"><input value={form.cargo || ''} onChange={e => setF('cargo', e.target.value)} style={S.inp} placeholder="ex: Consultor, Analista, Vendedor" /></Field>
+            <Field label="Tipo de Remuneração">
+              <select value={form.tipo || 'operacional'} onChange={e => setF('tipo', e.target.value)} style={S.inp}>
+                <option value="operacional">Operacional — Comissão % sobre projeto executado</option>
+                <option value="admin">Administrativo — Salário fixo mensal</option>
+                <option value="vendas">Vendas — Comissão % sobre venda fechada</option>
+              </select>
+            </Field>
+            {(form.tipo === 'operacional' || form.tipo === 'vendas') && (
+              <Field label="Comissão (%)">
+                <input type="number" value={form.comissao_pct || ''} onChange={e => setF('comissao_pct', e.target.value)} style={S.inp} min="0" max="100" step="0.1" />
+              </Field>
+            )}
+            {form.tipo === 'admin' && (
+              <Field label="Salário Fixo (R$/mês)">
+                <input type="number" value={form.salario_fixo || ''} onChange={e => setF('salario_fixo', e.target.value)} style={S.inp} min="0" step="0.01" />
+              </Field>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end' }}>
+            <button onClick={() => setModal(false)} style={S.btn('var(--color-background-secondary)', 'var(--color-text-primary)')}>Cancelar</button>
+            <button onClick={onSave} style={S.btn(TEAL)}>Salvar</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// RECORRENTES
+// ═══════════════════════════════════════════════════════
+function Recorrentes({ recorrentes, plano, clientes, lancamentos, currentUser, addAudit, saveRecorr, saveLanc }) {
+  const [modal, setModal] = useState(false);
+  const [form, setForm] = useState({});
+  const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const [gerarMes, setGerarMes] = useState(today().slice(0, 7));
+
+  const empty = { tipo: 'despesa', descricao: '', conta_id: '', cliente_id: '', valor: '', dia_vencimento: '1' };
+
+  const onSave = async () => {
+    if (!form.descricao?.trim() || !form.valor || !form.conta_id) return alert('Preencha Descrição, Conta e Valor.');
+    const item = { ...form, id: form.id || uid(), valor: +form.valor, dia_vencimento: +form.dia_vencimento || 1, criado_por: currentUser.name };
+    const isNew = !form.id;
+    const next = isNew ? [...recorrentes, item] : recorrentes.map(r => r.id === item.id ? item : r);
+    await saveRecorr(next);
+    await addAudit(isNew ? 'Criou recorrente' : 'Editou recorrente', 'Recorrentes', item.descricao);
+    setModal(false);
+  };
+
+  const onDel = async (id, nome) => {
+    if (!confirm(`Excluir "${nome}" dos recorrentes?`)) return;
+    await saveRecorr(recorrentes.filter(r => r.id !== id));
+    await addAudit('Excluiu recorrente', 'Recorrentes', nome);
+  };
+
+  const gerarLancamentos = async () => {
+    const novos = [];
+    for (const rec of recorrentes) {
+      // Verifica se já foi gerado nesse mês
+      const jaExiste = lancamentos.some(l =>
+        l.recorrente_id === rec.id && mk(l.dt_competencia) === gerarMes
+      );
+      if (jaExiste) continue;
+
+      const dia = String(rec.dia_vencimento || 1).padStart(2, '0');
+      const dtVcto = `${gerarMes}-${dia}`;
+      novos.push({
+        id: uid(), tipo: rec.tipo, descricao: rec.descricao, conta_id: rec.conta_id,
+        cliente_id: rec.cliente_id || '', valor: rec.valor, custo: 0,
+        dt_competencia: gerarMes + '-01', dt_caixa_prevista: dtVcto, dt_caixa_realizada: '',
+        status: 'previsto', recorrente_id: rec.id, criado_por: currentUser.name,
+      });
+    }
+    if (novos.length === 0) return alert('Todos os recorrentes já foram gerados para esse mês.');
+    await saveLanc([...lancamentos, ...novos]);
+    await addAudit('Gerou lançamentos recorrentes', 'Recorrentes', `${novos.length} lançamentos em ${gerarMes}`);
+    alert(`✓ ${novos.length} lançamento(s) criado(s) para ${gerarMes}.`);
+  };
+
+  return (
+    <div>
+      <PageHeader title="Lançamentos Recorrentes" />
+
+      <div style={{ ...S.card, marginBottom: 16 }}>
+        <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 14 }}>
+          Cadastre despesas e receitas fixas mensais (softwares, assinaturas, salários fixos, contratos). Gere todos os lançamentos de um mês com um clique.
+        </div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <div>
+            <label style={S.lbl}>Mês para gerar</label>
+            <input type="month" value={gerarMes} onChange={e => setGerarMes(e.target.value)} style={{ ...S.inp, width: 160 }} />
+          </div>
+          <button onClick={gerarLancamentos} style={S.btn(TEAL)}>⚡ Gerar lançamentos do mês</button>
+          <button onClick={() => { setForm(empty); setModal(true); }} style={S.btn(BLUE)}>+ Novo Recorrente</button>
+        </div>
+      </div>
+
+      <div style={S.card}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead><tr>{['Descrição','Tipo','Conta','Valor','Dia Vcto','Ações'].map(h => <th key={h} style={S.TH}>{h}</th>)}</tr></thead>
+          <tbody>
+            {recorrentes.length === 0 && <EmptyRow cols={6} msg="Nenhum lançamento recorrente cadastrado." />}
+            {recorrentes.map(r => {
+              const conta = plano.find(p => p.id === r.conta_id);
+              return (
+                <tr key={r.id}>
+                  <td style={{ ...S.TD, fontWeight: 500 }}>{r.descricao}</td>
+                  <td style={S.TD}><span style={S.tag(r.tipo === 'receita' ? TEAL_L : RED_L, r.tipo === 'receita' ? TEAL_D : RED)}>{r.tipo === 'receita' ? 'Receita' : 'Despesa'}</span></td>
+                  <td style={{ ...S.TD, fontSize: 11, color: 'var(--color-text-secondary)' }}>{conta ? `${conta.cod} — ${conta.nome}` : '—'}</td>
+                  <td style={{ ...S.TD, fontWeight: 600, color: r.tipo === 'receita' ? TEAL_D : RED }}>{fmt(r.valor)}</td>
+                  <td style={{ ...S.TD, fontSize: 12 }}>Todo dia {r.dia_vencimento}</td>
+                  <td style={S.TD}>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => { setForm({ ...r }); setModal(true); }} style={S.sm('var(--color-background-secondary)', 'var(--color-text-secondary)')}>✎</button>
+                      <button onClick={() => onDel(r.id, r.descricao)} style={S.sm(RED_L, RED)}>✕</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {modal && (
+        <Modal title={form.id ? 'Editar Recorrente' : 'Novo Recorrente'} onClose={() => setModal(false)} width={460}>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <Field label="Tipo">
+              <select value={form.tipo || 'despesa'} onChange={e => setF('tipo', e.target.value)} style={S.inp}>
+                <option value="despesa">Despesa</option>
+                <option value="receita">Receita</option>
+              </select>
+            </Field>
+            <Field label="Descrição *"><input value={form.descricao || ''} onChange={e => setF('descricao', e.target.value)} style={S.inp} autoFocus placeholder="ex: Notion, AWS, Salário Ana" /></Field>
+            <Field label="Conta *">
+              <select value={form.conta_id || ''} onChange={e => setF('conta_id', e.target.value)} style={S.inp}>
+                <option value="">Selecione...</option>
+                {plano.filter(p => p.tipo === (form.tipo || 'despesa')).map(p => <option key={p.id} value={p.id}>{p.cod} — {p.nome}</option>)}
+              </select>
+            </Field>
+            <Field label="Valor Mensal (R$) *"><input type="number" value={form.valor || ''} onChange={e => setF('valor', e.target.value)} style={S.inp} min="0" step="0.01" /></Field>
+            <Field label="Dia de Vencimento">
+              <input type="number" value={form.dia_vencimento || 1} onChange={e => setF('dia_vencimento', e.target.value)} style={S.inp} min="1" max="31" />
+            </Field>
+          </div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end' }}>
+            <button onClick={() => setModal(false)} style={S.btn('var(--color-background-secondary)', 'var(--color-text-primary)')}>Cancelar</button>
+            <button onClick={onSave} style={S.btn(TEAL)}>Salvar</button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════
+// SIMULADOR DE PRECIFICAÇÃO
+// ═══════════════════════════════════════════════════════
+function SimuladorPrecificacao({ premissas }) {
+  const [s, setS] = useState({
+    nome: '', horas: '', valor_hora: '', valor_fixo: '',
+    imposto_pct: premissas?.imposto_pct || 0,
+    comissao_pct: 0, overhead_pct: 15, margem_alvo: 30,
+    custo_direto: '',
+  });
+  const ss = (k, v) => setS(f => ({ ...f, [k]: v }));
+
+  const receita = +s.valor_fixo || ((+s.horas || 0) * (+s.valor_hora || 0));
+  const imposto   = +(receita * (+s.imposto_pct   / 100)).toFixed(2);
+  const comissao  = +(receita * (+s.comissao_pct  / 100)).toFixed(2);
+  const overhead  = +(receita * (+s.overhead_pct  / 100)).toFixed(2);
+  const custoDir  = +s.custo_direto || 0;
+  const custoTotal = imposto + comissao + overhead + custoDir;
+  const lucro      = receita - custoTotal;
+  const margem     = receita > 0 ? lucro / receita * 100 : 0;
+  const margemOk   = margem >= +s.margem_alvo;
+
+  const receitaNecessaria = () => {
+    const m = +s.margem_alvo / 100;
+    const pctCustos = (+s.imposto_pct + +s.comissao_pct + +s.overhead_pct) / 100;
+    return pctCustos < 1 ? (custoDir / (1 - pctCustos - m)) : 0;
+  };
+
+  const mcor = v => v >= 40 ? TEAL_D : v >= 20 ? AMBER : RED;
+  const Inp = ({ label, field, ...rest }) => (
+    <div>
+      <label style={S.lbl}>{label}</label>
+      <input value={s[field] || ''} onChange={e => ss(field, e.target.value)} style={S.inp} {...rest} />
+    </div>
+  );
+
+  return (
+    <div>
+      <PageHeader title="Simulador de Precificação" />
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        {/* Inputs */}
+        <div style={S.card}>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>Parâmetros do Serviço</div>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <Inp label="Nome do serviço / proposta" field="nome" placeholder="ex: Diagnóstico Financeiro" />
+            <div style={{ borderTop: '1px solid var(--color-border-tertiary)', paddingTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>Precificação</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <Inp label="Horas estimadas" field="horas" type="number" min="0" step="0.5" />
+                <Inp label="Valor por hora (R$)" field="valor_hora" type="number" min="0" step="10" />
+              </div>
+              <div style={{ textAlign: 'center', padding: '6px 0', fontSize: 12, color: 'var(--color-text-secondary)' }}>— ou —</div>
+              <Inp label="Valor fixo do projeto (R$)" field="valor_fixo" type="number" min="0" step="100" />
+            </div>
+            <div style={{ borderTop: '1px solid var(--color-border-tertiary)', paddingTop: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '.06em' }}>Deduções (%)</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <Inp label="Imposto (%)" field="imposto_pct" type="number" min="0" max="100" step="0.1" />
+                <Inp label="Comissão (%)" field="comissao_pct" type="number" min="0" max="100" step="0.1" />
+                <Inp label="Overhead / G&A (%)" field="overhead_pct" type="number" min="0" max="100" step="1" />
+                <Inp label="Custo direto (R$)" field="custo_direto" type="number" min="0" step="10" />
+              </div>
+            </div>
+            <div style={{ borderTop: '1px solid var(--color-border-tertiary)', paddingTop: 12 }}>
+              <Inp label="Margem alvo (%)" field="margem_alvo" type="number" min="0" max="100" step="1" />
+            </div>
+          </div>
+        </div>
+
+        {/* Resultado */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div style={{ ...S.card, borderLeft: `4px solid ${margemOk ? TEAL : RED}` }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 16 }}>Resultado da Simulação</div>
+            {receita === 0 ? (
+              <div style={{ color: 'var(--color-text-secondary)', fontSize: 13 }}>Preencha o valor do serviço para ver a simulação.</div>
+            ) : (
+              <div style={{ display: 'grid', gap: 10 }}>
+                {[
+                  ['Receita Bruta', receita, TEAL_D, true],
+                  ['(-) Imposto', -imposto, RED, false],
+                  ['(-) Comissão', -comissao, RED, false],
+                  ['(-) Overhead', -overhead, RED, false],
+                  ['(-) Custo Direto', -custoDir, RED, false],
+                  ['= Custo Total', -custoTotal, RED, true],
+                  ['= LUCRO', lucro, lucro >= 0 ? TEAL_D : RED, true],
+                ].map(([label, val, color, bold]) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid var(--color-border-tertiary)' }}>
+                    <span style={{ fontSize: 13, fontWeight: bold ? 600 : 400 }}>{label}</span>
+                    <span style={{ fontWeight: bold ? 700 : 500, fontSize: bold ? 15 : 13, color }}>{fmt(Math.abs(val))}</span>
+                  </div>
+                ))}
+                <div style={{ marginTop: 8, padding: 16, borderRadius: 8, background: margemOk ? TEAL_L : RED_L, textAlign: 'center' }}>
+                  <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 4 }}>Margem Líquida</div>
+                  <div style={{ fontSize: 36, fontWeight: 900, color: mcor(margem) }}>{margem.toFixed(1)}%</div>
+                  <div style={{ fontSize: 12, color: margemOk ? TEAL_D : RED, marginTop: 4 }}>
+                    {margemOk ? `✓ Acima da meta de ${s.margem_alvo}%` : `✗ Abaixo da meta de ${s.margem_alvo}%`}
+                  </div>
+                </div>
+                {!margemOk && receitaNecessaria() > 0 && (
+                  <div style={{ padding: 12, background: AMBER_L, borderRadius: 8, fontSize: 12 }}>
+                    💡 Para atingir {s.margem_alvo}% de margem, o valor mínimo deve ser <strong style={{ color: AMBER }}>{fmt(receitaNecessaria())}</strong>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {receita > 0 && s.horas > 0 && (
+            <div style={S.card}>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10 }}>Métricas por Hora</div>
+              {[
+                ['Receita / hora', receita / +s.horas],
+                ['Lucro / hora', lucro / +s.horas],
+                ['Custo / hora', custoTotal / +s.horas],
+              ].map(([l, v]) => (
+                <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--color-border-tertiary)', fontSize: 13 }}>
+                  <span style={{ color: 'var(--color-text-secondary)' }}>{l}</span>
+                  <strong>{fmt(v)}</strong>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function LogAuditoria({ auditLog, users }) {
   const [userFilter, setUserFilter] = useState('');
   const filtered = auditLog.filter(e => !userFilter || e.userId === userFilter);
@@ -2329,15 +2846,20 @@ export default function PrumaFinanceiro() {
   const [extratos, setExtratos]     = useState([]);
   const [auditLog, setAuditLog]     = useState([]);
   const [periodo, setPeriodo]       = useState({ start: getMonths(6, -5)[0], end: today().slice(0, 7) });
+  const [colaboradores, setColaboradores] = useState([]);
+  const [premissas, setPremissas]   = useState({ imposto_pct: 0 });
+  const [recorrentes, setRecorrentes] = useState([]);
 
   useEffect(() => {
     (async () => {
-      const [u, l, c, p, e, a] = await Promise.all([
+      const [u, l, c, p, e, a, col, prem, rec] = await Promise.all([
         stLoad(K.users, U0), stLoad(K.lanc, []), stLoad(K.cli, []),
-        stLoad(K.plano, P0),  stLoad(K.ext, []), stLoad(K.audit, []),
+        stLoad(K.plano, P0), stLoad(K.ext, []), stLoad(K.audit, []),
+        stLoad(K.colab, []), stLoad(K.premissas, { imposto_pct: 0 }), stLoad(K.recorr, []),
       ]);
       setUsers(u); setLancamentos(l); setClientes(c);
       setPlano(p); setExtratos(e);   setAuditLog(a);
+      setColaboradores(col); setPremissas(prem); setRecorrentes(rec);
       setLoading(false);
     })();
   }, []);
@@ -2350,10 +2872,13 @@ export default function PrumaFinanceiro() {
     await stSave(K.audit, next);
   };
 
-  const saveLanc   = async it => { setLancamentos(it); await stSave(K.lanc,   it); };
-  const saveCli    = async it => { setClientes(it);    await stSave(K.cli,    it); };
-  const savePlano  = async it => { setPlano(it);       await stSave(K.plano,  it); };
-  const saveUsers_ = async it => { setUsers(it);       await stSave(K.users,  it); };
+  const saveLanc      = async it => { setLancamentos(it);   await stSave(K.lanc,      it); };
+  const saveCli       = async it => { setClientes(it);      await stSave(K.cli,       it); };
+  const savePlano     = async it => { setPlano(it);         await stSave(K.plano,     it); };
+  const saveUsers_    = async it => { setUsers(it);         await stSave(K.users,     it); };
+  const saveColabs    = async it => { setColaboradores(it); await stSave(K.colab,     it); };
+  const savePremissas = async it => { setPremissas(it);     await stSave(K.premissas, it); };
+  const saveRecorr    = async it => { setRecorrentes(it);   await stSave(K.recorr,    it); };
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 400, color: 'var(--color-text-secondary)', fontSize: 14 }}>
@@ -2378,10 +2903,9 @@ export default function PrumaFinanceiro() {
     }} />
   );
 
-  const shared = { lancamentos, clientes, plano, extratos, auditLog, users, currentUser, periodo, addAudit, saveLanc, saveCli, savePlano };
+  const shared = { lancamentos, clientes, plano, extratos, auditLog, users, currentUser, periodo, addAudit, saveLanc, saveCli, savePlano, colaboradores, premissas, recorrentes, saveColabs, savePremissas, saveRecorr };
 
-  // Pages that should NOT show the period bar
-  const noPeriodo = ['clientes', 'plano', 'conciliacao', 'audit'];
+  const noPeriodo = ['clientes', 'plano', 'conciliacao', 'audit', 'colaboradores', 'recorrentes', 'simulador'];
 
   return (
     <div style={{ display: 'flex', fontFamily: 'var(--font-sans)', minHeight: '100vh' }}>
@@ -2389,17 +2913,20 @@ export default function PrumaFinanceiro() {
       <div style={{ flex: 1, background: 'var(--color-background-secondary)', overflowY: 'auto', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         {!noPeriodo.includes(page) && <PeriodoBar periodo={periodo} setPeriodo={setPeriodo} />}
         <div style={{ padding: 24, maxWidth: 1200, flex: 1 }}>
-          {page === 'dashboard'   && <Dashboard   {...shared} />}
-          {page === 'lancamentos' && <Lancamentos  {...shared} />}
-          {page === 'clientes'    && <Clientes     {...shared} />}
-          {page === 'plano'       && <PlanoContas  {...shared} />}
-          {page === 'dre'         && <DRE          {...shared} />}
-          {page === 'fluxo'       && <FluxoCaixa   {...shared} />}
-          {page === 'crp'         && <ContasReceberPagar {...shared} />}
-          {page === 'vendas'      && <RelatorioVendas   {...shared} />}
-          {page === 'ciclo'       && <CicloFinanceiro   {...shared} />}
-          {page === 'conciliacao' && <Conciliacao  {...shared} />}
-          {page === 'audit'       && <LogAuditoria {...shared} />}
+          {page === 'dashboard'     && <Dashboard       {...shared} />}
+          {page === 'lancamentos'   && <Lancamentos      {...shared} />}
+          {page === 'recorrentes'   && <Recorrentes      {...shared} />}
+          {page === 'clientes'      && <Clientes         {...shared} />}
+          {page === 'plano'         && <PlanoContas      {...shared} />}
+          {page === 'colaboradores' && <Colaboradores    {...shared} />}
+          {page === 'dre'           && <DRE              {...shared} />}
+          {page === 'fluxo'         && <FluxoCaixa       {...shared} />}
+          {page === 'crp'           && <ContasReceberPagar {...shared} />}
+          {page === 'vendas'        && <RelatorioVendas  {...shared} />}
+          {page === 'ciclo'         && <CicloFinanceiro  {...shared} />}
+          {page === 'simulador'     && <SimuladorPrecificacao {...shared} />}
+          {page === 'conciliacao'   && <Conciliacao      {...shared} />}
+          {page === 'audit'         && <LogAuditoria     {...shared} />}
         </div>
       </div>
     </div>
