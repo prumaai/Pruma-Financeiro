@@ -715,7 +715,6 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
             <Field label="Data de Competência *">
-            <Field label="Data de Competência *">
               <input type="date" value={form.dt_competencia || ''} onChange={e => setF('dt_competencia', e.target.value)} style={S.inp} />
             </Field>
             {!parcelar && (
