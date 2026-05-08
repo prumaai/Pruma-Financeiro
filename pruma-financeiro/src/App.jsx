@@ -553,7 +553,6 @@ function CostBlock({ form, setF, calcCustos, plano, colaboradores = [], premissa
 }
 
 function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, saveLanc, recorrentes, saveRecorr, colaboradores = [], premissas = {} }) {
-  const [tab, setTab] = useState('avulsos'); // 'avulsos' | 'recorrentes'
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
   const [filter, setFilter] = useState({ tipo: '', status: '', mes: '' });
@@ -674,22 +673,12 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
   return (
     <div>
       <PageHeader title="Lançamentos" action={
-        tab === 'avulsos'
-          ? <button onClick={() => { setForm(emptyForm); setParcelar(false); setPrimeiraData(''); setModal(true); }} style={S.btn(TEAL)}>+ Novo Lançamento</button>
-          : null
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => { setForm(emptyForm); setParcelar(false); setPrimeiraData(''); setModal(true); }} style={S.btn(TEAL)}>+ Novo Lançamento</button>
+        </div>
       } />
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-        <button onClick={() => setTab('avulsos')} style={S.sm(tab==='avulsos' ? TEAL : 'var(--color-background-primary)', tab==='avulsos' ? '#fff' : 'var(--color-text-secondary)')}>⊟ Lançamentos</button>
-        <button onClick={() => setTab('recorrentes')} style={S.sm(tab==='recorrentes' ? TEAL : 'var(--color-background-primary)', tab==='recorrentes' ? '#fff' : 'var(--color-text-secondary)')}>↺ Recorrentes</button>
-      </div>
-
-      {/* ABA RECORRENTES */}
-      {tab === 'recorrentes' && <RecorrentesPanel recorrentes={recorrentes || []} plano={plano} clientes={clientes} lancamentos={lancamentos} currentUser={currentUser} addAudit={addAudit} saveRecorr={saveRecorr} saveLanc={saveLanc} />}
-
-      {/* ABA LANÇAMENTOS */}
-      {tab === 'avulsos' && <>
+      {/* Barra de filtros + gerar recorrentes */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         {[['', 'Todos'], ['receita', 'Receitas'], ['despesa', 'Despesas']].map(([v, l]) => (
           <button key={v} onClick={() => setFilter(f => ({ ...f, tipo: v }))}
@@ -702,6 +691,25 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
         </select>
         <input type="month" value={filter.mes} onChange={e => setFilter(f => ({ ...f, mes: e.target.value }))} style={{ ...S.inp, width: 145, padding: '5px 10px', fontSize: 12 }} />
         <span style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginLeft: 4 }}>{filtered.length} registros</span>
+        <div style={{ flex: 1 }} />
+        {(recorrentes || []).length > 0 && (
+          <button onClick={async () => {
+            const mes = filter.mes || today().slice(0, 7);
+            const novos = [];
+            for (const rec of (recorrentes || [])) {
+              const jaExiste = lancamentos.some(l => l.recorrente_id === rec.id && mk(l.dt_competencia) === mes);
+              if (jaExiste) continue;
+              const dia = String(rec.dia_vencimento || 1).padStart(2, '0');
+              novos.push({ id: uid(), tipo: rec.tipo, descricao: rec.descricao, conta_id: rec.conta_id, cliente_id: rec.cliente_id || '', valor: rec.valor, custo: 0, dt_competencia: mes + '-01', dt_caixa_prevista: `${mes}-${dia}`, dt_caixa_realizada: '', status: 'previsto', recorrente_id: rec.id, criado_por: currentUser.name });
+            }
+            if (!novos.length) return alert('Todos os recorrentes já foram gerados para esse mês.');
+            await saveLanc([...lancamentos, ...novos]);
+            await addAudit('Gerou recorrentes', 'Lançamento', `${novos.length} lançamento(s) em ${mes}`);
+            alert(`✓ ${novos.length} lançamento(s) recorrente(s) criado(s).`);
+          }} style={{ ...S.sm(BLUE_L, BLUE), whiteSpace: 'nowrap' }}>
+            ↺ Gerar recorrentes {filter.mes ? `de ${ml(filter.mes)}` : 'do mês'}
+          </button>
+        )}
       </div>
 
       <div style={S.card}>
@@ -719,7 +727,10 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
                 const venc  = !l.dt_caixa_realizada && l.dt_caixa_prevista && l.dt_caixa_prevista < today();
                 return (
                   <tr key={l.id}>
-                    <td style={S.TD}><span style={{ fontWeight: 500 }}>{l.descricao}</span></td>
+                    <td style={S.TD}>
+                      <span style={{ fontWeight: 500 }}>{l.descricao}</span>
+                      {l.recorrente_id && <span title="Lançamento recorrente" style={{ marginLeft: 6, fontSize: 10, color: BLUE, fontWeight: 700 }}>↺</span>}
+                    </td>
                     <td style={S.TD}><span style={S.tag(l.tipo === 'receita' ? TEAL_L : RED_L, l.tipo === 'receita' ? TEAL_D : RED)}>{l.tipo === 'receita' ? 'Receita' : 'Despesa'}</span></td>
                     <td style={{ ...S.TD, fontSize: 12, color: 'var(--color-text-secondary)' }}>{conta?.nome || '—'}</td>
                     <td style={{ ...S.TD, fontSize: 12 }}>{cli?.nome || '—'}</td>
@@ -866,7 +877,6 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
           </div>
         </Modal>
       )}
-      </>}
     </div>
   );
 }
