@@ -1450,19 +1450,64 @@ function CicloFinanceiro({ lancamentos, clientes, plano, periodo }) {
 // CONCILIAÇÃO BANCÁRIA
 // ═══════════════════════════════════════════════════════
 function Conciliacao({ lancamentos, clientes, plano, currentUser, addAudit, saveLanc }) {
-  const [rows, setRows]       = useState([]);
-  const [err, setErr]         = useState('');
-  const [novoForm, setNovoForm] = useState(null); // extId being created
+  const [rows, setRows]         = useState([]);
+  const [err, setErr]           = useState('');
+  const [novoForm, setNovoForm] = useState(null);
+  const [fonte, setFonte]       = useState('arquivo'); // 'arquivo' | 'asaas'
+
+  // Asaas state
+  const [asaasStart, setAsaasStart] = useState(getMonths(1, -1)[0] + '-01');
+  const [asaasEnd, setAsaasEnd]     = useState(today());
+  const [asaasLoading, setAsaasLoading] = useState(false);
+  const [asaasStatus, setAsaasStatus]   = useState(''); // mensagem de progresso
 
   // ── Parsers ──────────────────────────────────────────
   const parseCSV = (text) => {
-    const lines = text.trim().split('\n').filter(l => l.trim());
+    // Remove BOM e normaliza quebras de linha
+    text = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const lines = text.trim().split('\n').filter(l => l.trim() && !l.startsWith('//') && !l.startsWith('#'));
+    if (lines.length < 2) return [];
+
+    // Auto-detecta separador: ; ou ,
+    const sep = (lines[0].match(/;/g) || []).length >= (lines[0].match(/,/g) || []).length ? ';' : ',';
+
+    // Identifica colunas pelo cabeçalho
+    const hdr = lines[0].split(sep).map(h => h.trim().replace(/["']/g, '').toLowerCase());
+    const findCol = (...names) => { for (const n of names) { const i = hdr.findIndex(h => h.includes(n)); if (i >= 0) return i; } return -1; };
+    const dc = Math.max(0, findCol('data', 'date', 'dt'));
+    const hc = Math.max(1, findCol('histórico', 'historico', 'descri', 'memo', 'title', 'detail', 'lançamento', 'lancamento', 'transacao'));
+    const vc = Math.max(2, findCol('valor', 'amount', 'value', 'crédito', 'debito', 'montante', 'credit', 'debit'));
+
+    const parseDate = (raw) => {
+      if (!raw) return '';
+      raw = raw.replace(/["']/g, '').trim();
+      if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+      const parts = raw.split(/[\/\-\.]/);
+      if (parts.length === 3) {
+        if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2,'0')}-${parts[2].padStart(2,'0')}`;
+        if (parts[2].length === 4) return `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+        if (parts[2].length === 2) return `20${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
+      }
+      return raw;
+    };
+
+    const parseVal = (raw) => {
+      if (!raw) return 0;
+      raw = raw.replace(/["'\s]/g, '');
+      if (/^-?[\d.]+,\d{1,2}$/.test(raw)) return parseFloat(raw.replace(/\./g,'').replace(',','.'));
+      if (/^-?[\d,]+\.\d{1,2}$/.test(raw)) return parseFloat(raw.replace(/,/g,''));
+      return parseFloat(raw.replace(',','.')) || 0;
+    };
+
     return lines.slice(1).map(line => {
-      const cols = line.split(';').map(c => c.trim().replace(/"/g, ''));
-      const dateStr = cols[0]?.includes('/') ? cols[0].split('/').reverse().join('-') : cols[0];
-      const val = parseFloat((cols[2] || '0').replace(/\./g, '').replace(',', '.')) || 0;
-      return { id: uid(), data: dateStr, historico: cols[1] || '', valor: Math.abs(val), tipo: val >= 0 ? 'credito' : 'debito' };
-    }).filter(r => r.historico && r.valor > 0);
+      const cols = line.split(sep).map(c => c.trim());
+      if (cols.length < 2) return null;
+      const data = parseDate(cols[dc]);
+      const historico = (cols[hc] || '').replace(/["']/g, '').trim();
+      const val = parseVal(cols[vc]);
+      if (!historico || !data) return null;
+      return { id: uid(), data, historico, valor: Math.abs(val), tipo: val >= 0 ? 'credito' : 'debito' };
+    }).filter(r => r && r.historico && r.valor > 0);
   };
 
   const parseOFX = (text) => {
@@ -1506,7 +1551,74 @@ function Conciliacao({ lancamentos, clientes, plano, currentUser, addAudit, save
     return best._score >= 60 ? best : null; // exige no mínimo valor batendo
   };
 
-  // ── Import + auto-match ───────────────────────────────
+  // ── Importar do Asaas via Netlify Function ────────────
+  const importarAsaas = async () => {
+    setAsaasLoading(true); setErr(''); setAsaasStatus('Conectando ao Asaas...');
+    let allRows = [], offset = 0, hasMore = true;
+
+    try {
+      while (hasMore) {
+        const params = new URLSearchParams({
+          startDate: asaasStart,
+          finishDate: asaasEnd,
+          offset: String(offset),
+          limit: '100',
+        });
+
+        setAsaasStatus(`Buscando transações (${offset > 0 ? offset + ' importadas' : 'início'})...`);
+
+        const res = await fetch(`/.netlify/functions/asaas?${params}`);
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || `Erro ${res.status}`);
+        }
+
+        const transactions = data.data || [];
+        const mapped = transactions.map(t => ({
+          id: uid(),
+          data: t.date,
+          historico: t.description || t.type || 'Movimentação Asaas',
+          valor: Math.abs(t.value),
+          tipo: t.value >= 0 ? 'credito' : 'debito',
+          asaasId: t.id,
+          asaasType: t.type,
+        }));
+
+        allRows = [...allRows, ...mapped];
+        hasMore = data.hasMore === true;
+        offset += transactions.length;
+
+        if (transactions.length === 0) break;
+      }
+
+      if (allRows.length === 0) {
+        setAsaasStatus('');
+        return setErr('Nenhuma movimentação encontrada no período selecionado.');
+      }
+
+      // Auto-match
+      const withMatches = allRows.map(ext => ({
+        ...ext,
+        conciliado: false,
+        lancamento_id: null,
+        sugestao: findMatch(ext, lancamentos),
+      }));
+
+      setRows(withMatches);
+      setAsaasStatus(`✓ ${allRows.length} transações importadas do Asaas.`);
+    } catch (e) {
+      const msg = e.message || String(e);
+      if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
+        setErr('Não foi possível conectar. Verifique se a Netlify Function está ativa e a variável ASAAS_API_KEY configurada.');
+      } else {
+        setErr(`Erro Asaas: ${msg}`);
+      }
+      setAsaasStatus('');
+    } finally {
+      setAsaasLoading(false);
+    }
+  };
   const onFile = e => {
     const file = e.target.files?.[0]; if (!file) return;
     e.target.value = ''; // allow re-import same file
@@ -1587,12 +1699,49 @@ function Conciliacao({ lancamentos, clientes, plano, currentUser, addAudit, save
 
       {/* Import */}
       <div style={{ ...S.card, marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Importar Extrato Bancário</div>
-        <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 12 }}>
-          Aceita <strong>CSV</strong> (Data;Histórico;Valor;Saldo) e <strong>OFX</strong>. O sistema tenta fazer o match automático com lançamentos existentes.
+        {/* Tabs: Arquivo vs Asaas */}
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          {[['arquivo','📂 CSV / OFX'], ['asaas','⚡ Importar do Asaas']].map(([v, l]) => (
+            <button key={v} onClick={() => { setFonte(v); setErr(''); }}
+              style={S.sm(fonte === v ? (v === 'asaas' ? BLUE : TEAL) : 'var(--color-background-secondary)', fonte === v ? '#fff' : 'var(--color-text-secondary)')}>
+              {l}
+            </button>
+          ))}
         </div>
-        <input type="file" accept=".csv,.ofx,.txt" onChange={onFile} style={{ fontSize: 13 }} />
-        {err && <div style={{ color: RED, fontSize: 12, marginTop: 8 }}>{err}</div>}
+
+        {fonte === 'arquivo' ? (
+          <>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 12 }}>
+              Aceita <strong>CSV</strong> (Data;Histórico;Valor;Saldo) e <strong>OFX</strong>. O sistema tenta fazer o match automático com lançamentos existentes.
+            </div>
+            <input type="file" accept=".csv,.ofx,.txt" onChange={onFile} style={{ fontSize: 13 }} />
+          </>
+        ) : (
+          <>
+            <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 14 }}>
+              Busca suas movimentações financeiras diretamente do Asaas via API.
+              <br />
+              <strong>Pré-requisito:</strong> configure <code style={{ background: 'var(--color-background-secondary)', padding: '1px 5px', borderRadius: 4, fontSize: 11 }}>ASAAS_API_KEY</code> nas variáveis de ambiente do Netlify (Site → Environment variables).
+            </div>
+            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+              <div>
+                <label style={S.lbl}>Data inicial</label>
+                <input type="date" value={asaasStart} onChange={e => setAsaasStart(e.target.value)} style={{ ...S.inp, width: 150 }} />
+              </div>
+              <div>
+                <label style={S.lbl}>Data final</label>
+                <input type="date" value={asaasEnd} onChange={e => setAsaasEnd(e.target.value)} style={{ ...S.inp, width: 150 }} />
+              </div>
+              <button onClick={importarAsaas} disabled={asaasLoading}
+                style={{ ...S.btn(asaasLoading ? 'var(--color-background-secondary)' : BLUE), cursor: asaasLoading ? 'wait' : 'pointer' }}>
+                {asaasLoading ? '⏳ Importando...' : '⬇ Importar movimentações'}
+              </button>
+            </div>
+            {asaasStatus && <div style={{ fontSize: 12, color: BLUE, marginTop: 10, fontWeight: 500 }}>{asaasStatus}</div>}
+          </>
+        )}
+
+        {err && <div style={{ color: RED, fontSize: 12, marginTop: 10 }}>{err}</div>}
         {rows.length > 0 && (
           <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12, fontWeight: 500, color: GREEN }}>✓ {conciliadas} conciliadas</span>
