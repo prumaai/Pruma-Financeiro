@@ -587,13 +587,26 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
       return [{ id: uid(), tipo: 'despesa', descricao: `Comissão ${form.comissao_pct}% — ${descBase}`, conta_id: conta?.id || '', valor, custo: 0, dt_competencia: dtComp, dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status, cliente_id: clienteId, criado_por: currentUser.name, origem_id: receitaId }];
     };
 
-    // Imposto sempre sobre o valor TOTAL, lançado uma vez no mês de competência
-    const buildImposto = (descBase, valorTotal, dtComp, status, clienteId) => {
+    // Comissão: prazo de caixa baseado na conta escolhida
+    const buildComissao = (receitaId, descBase, valorBase, dtVcto, status, clienteId) => {
+      if (!form.comissao_ativo || !+form.comissao_pct) return [];
+      const valor = +(valorBase * (+form.comissao_pct) / 100).toFixed(2);
+      if (!valor) return [];
+      const conta = plano.find(p => p.id === form.comissao_conta_id) || contaByPrefix('3.2') || plano.find(p => p.tipo === 'despesa');
+      const prazo = conta?.prazo_meses || 0;
+      const dtCaixa = prazo > 0 ? addMonths(dtVcto, prazo) : dtVcto;
+      return [{ id: uid(), tipo: 'despesa', descricao: `Comissão ${form.comissao_pct}% — ${descBase}`, conta_id: conta?.id || '', valor, custo: 0, dt_competencia: dtVcto, dt_caixa_prevista: dtCaixa, dt_caixa_realizada: '', status, cliente_id: clienteId, criado_por: currentUser.name, origem_id: receitaId }];
+    };
+
+    // Imposto: competência = mês da NF (dtVcto), caixa = dtVcto + prazo da conta 2.1
+    const buildImposto = (descBase, valorBase, dtVcto, status, clienteId) => {
       if (!form.imposto_ativo || !+form.imposto_pct) return [];
-      const valor = +(valorTotal * (+form.imposto_pct) / 100).toFixed(2);
+      const valor = +(valorBase * (+form.imposto_pct) / 100).toFixed(2);
       if (!valor) return [];
       const conta = contaByPrefix('2.1') || plano.find(p => p.tipo === 'despesa');
-      return [{ id: uid(), tipo: 'despesa', descricao: `Imposto ${form.imposto_pct}% — ${descBase}`, conta_id: conta?.id || '', valor, custo: 0, dt_competencia: dtComp, dt_caixa_prevista: dtComp, dt_caixa_realizada: '', status, cliente_id: clienteId, criado_por: currentUser.name }];
+      const prazo = conta?.prazo_meses ?? 1; // padrão 1 mês para impostos
+      const dtCaixa = addMonths(dtVcto, prazo);
+      return [{ id: uid(), tipo: 'despesa', descricao: `Imposto ${form.imposto_pct}% — ${descBase}`, conta_id: conta?.id || '', valor, custo: 0, dt_competencia: dtVcto, dt_caixa_prevista: dtCaixa, dt_caixa_realizada: '', status, cliente_id: clienteId, criado_por: currentUser.name }];
     };
 
     if (parcelar) {
@@ -604,9 +617,9 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
         const id = uid();
         const dtVcto = addMonths(primeiraData, i);
         const rec = { ...form, id, descricao: `${form.descricao} (${i + 1}/${n})`, valor: valorParcela, custo: +(custos.total / n).toFixed(2), dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status: 'previsto', criado_por: currentUser.name };
-        // Comissão e Imposto ambos proporcionais por parcela (NF mensal)
-        const comissoes = buildComissao(id, `${form.descricao} (${i+1}/${n})`, valorParcela, form.dt_competencia, dtVcto, 'previsto', form.cliente_id);
-        const impostos  = buildImposto(`${form.descricao} (${i+1}/${n})`, valorParcela, form.dt_competencia, 'previsto', form.cliente_id);
+        // Comissão e Imposto proporcionais por parcela — cada um com sua data correta
+        const comissoes = buildComissao(id, `${form.descricao} (${i+1}/${n})`, valorParcela, dtVcto, 'previsto', form.cliente_id);
+        const impostos  = buildImposto(`${form.descricao} (${i+1}/${n})`, valorParcela, dtVcto, 'previsto', form.cliente_id);
         return [rec, ...comissoes, ...impostos];
       }).flat();
       await saveLanc([...lancamentos, ...novos]);
@@ -615,8 +628,9 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
       const id = form.id || uid();
       const item = { ...form, id, valor: +form.valor || 0, custo: +custos.total.toFixed(2), criado_por: currentUser.name };
       const isNew = !form.id;
-      const comissoes = isNew ? buildComissao(id, form.descricao, item.valor, form.dt_competencia, form.dt_caixa_prevista, form.status, form.cliente_id) : [];
-      const impostos  = isNew ? buildImposto(form.descricao, item.valor, form.dt_competencia, form.status, form.cliente_id) : [];
+      const dtVcto = form.dt_caixa_prevista || form.dt_competencia;
+      const comissoes = isNew ? buildComissao(id, form.descricao, item.valor, dtVcto, form.status, form.cliente_id) : [];
+      const impostos  = isNew ? buildImposto(form.descricao, item.valor, dtVcto, form.status, form.cliente_id) : [];
       const base = isNew ? [...lancamentos, item] : lancamentos.map(l => l.id === item.id ? item : l);
       await saveLanc([...base, ...comissoes, ...impostos]);
       const nd = comissoes.length + impostos.length;
