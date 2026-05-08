@@ -344,7 +344,6 @@ function Sidebar({ page, setPage, user, onLogout }) {
     { sec: 'Operacional' },
     { id: 'dashboard',    label: 'Dashboard',           icon: '▦' },
     { id: 'lancamentos',  label: 'Lançamentos',          icon: '⊟' },
-    { id: 'recorrentes',  label: 'Recorrentes',          icon: '↺' },
     { id: 'clientes',     label: 'Clientes',             icon: '⊡' },
     { sec: 'Cadastros' },
     { id: 'plano',        label: 'Plano de Contas',      icon: '⊞' },
@@ -553,7 +552,8 @@ function CostBlock({ form, setF, calcCustos, plano, colaboradores = [], premissa
   );
 }
 
-function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, saveLanc }) {
+function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, saveLanc, recorrentes, saveRecorr }) {
+  const [tab, setTab] = useState('avulsos'); // 'avulsos' | 'recorrentes'
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
   const [filter, setFilter] = useState({ tipo: '', status: '', mes: '' });
@@ -666,9 +666,22 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
   return (
     <div>
       <PageHeader title="Lançamentos" action={
-        <button onClick={() => { setForm(emptyForm); setParcelar(false); setPrimeiraData(''); setModal(true); }} style={S.btn(TEAL)}>+ Novo Lançamento</button>
+        tab === 'avulsos'
+          ? <button onClick={() => { setForm(emptyForm); setParcelar(false); setPrimeiraData(''); setModal(true); }} style={S.btn(TEAL)}>+ Novo Lançamento</button>
+          : null
       } />
 
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+        <button onClick={() => setTab('avulsos')} style={S.sm(tab==='avulsos' ? TEAL : 'var(--color-background-primary)', tab==='avulsos' ? '#fff' : 'var(--color-text-secondary)')}>⊟ Lançamentos</button>
+        <button onClick={() => setTab('recorrentes')} style={S.sm(tab==='recorrentes' ? TEAL : 'var(--color-background-primary)', tab==='recorrentes' ? '#fff' : 'var(--color-text-secondary)')}>↺ Recorrentes</button>
+      </div>
+
+      {/* ABA RECORRENTES */}
+      {tab === 'recorrentes' && <RecorrentesPanel recorrentes={recorrentes || []} plano={plano} lancamentos={lancamentos} currentUser={currentUser} addAudit={addAudit} saveRecorr={saveRecorr} saveLanc={saveLanc} />}
+
+      {/* ABA LANÇAMENTOS */}
+      {tab === 'avulsos' && <>
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         {[['', 'Todos'], ['receita', 'Receitas'], ['despesa', 'Despesas']].map(([v, l]) => (
           <button key={v} onClick={() => setFilter(f => ({ ...f, tipo: v }))}
@@ -825,6 +838,7 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
           </div>
         </Modal>
       )}
+      </>}
     </div>
   );
 }
@@ -2487,7 +2501,7 @@ function Colaboradores({ colaboradores, premissas, lancamentos, currentUser, add
 // ═══════════════════════════════════════════════════════
 // RECORRENTES
 // ═══════════════════════════════════════════════════════
-function Recorrentes({ recorrentes, plano, clientes, lancamentos, currentUser, addAudit, saveRecorr, saveLanc }) {
+function RecorrentesPanel({ recorrentes, plano, clientes, lancamentos, currentUser, addAudit, saveRecorr, saveLanc }) {
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
   const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -2537,7 +2551,7 @@ function Recorrentes({ recorrentes, plano, clientes, lancamentos, currentUser, a
 
   return (
     <div>
-      <PageHeader title="Lançamentos Recorrentes" />
+      
 
       <div style={{ ...S.card, marginBottom: 16 }}>
         <div style={{ fontSize: 13, color: 'var(--color-text-secondary)', marginBottom: 14 }}>
@@ -2905,7 +2919,7 @@ export default function PrumaFinanceiro() {
 
   const shared = { lancamentos, clientes, plano, extratos, auditLog, users, currentUser, periodo, addAudit, saveLanc, saveCli, savePlano, colaboradores, premissas, recorrentes, saveColabs, savePremissas, saveRecorr };
 
-  const noPeriodo = ['clientes', 'plano', 'conciliacao', 'audit', 'colaboradores', 'recorrentes', 'simulador'];
+  const noPeriodo = ['clientes', 'plano', 'conciliacao', 'audit', 'colaboradores', 'simulador'];
 
   return (
     <div style={{ display: 'flex', fontFamily: 'var(--font-sans)', minHeight: '100vh' }}>
@@ -2915,7 +2929,6 @@ export default function PrumaFinanceiro() {
         <div style={{ padding: 24, maxWidth: 1200, flex: 1 }}>
           {page === 'dashboard'     && <Dashboard       {...shared} />}
           {page === 'lancamentos'   && <Lancamentos      {...shared} />}
-          {page === 'recorrentes'   && <Recorrentes      {...shared} />}
           {page === 'clientes'      && <Clientes         {...shared} />}
           {page === 'plano'         && <PlanoContas      {...shared} />}
           {page === 'colaboradores' && <Colaboradores    {...shared} />}
