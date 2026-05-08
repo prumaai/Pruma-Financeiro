@@ -678,7 +678,7 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
       </div>
 
       {/* ABA RECORRENTES */}
-      {tab === 'recorrentes' && <RecorrentesPanel recorrentes={recorrentes || []} plano={plano} lancamentos={lancamentos} currentUser={currentUser} addAudit={addAudit} saveRecorr={saveRecorr} saveLanc={saveLanc} />}
+      {tab === 'recorrentes' && <RecorrentesPanel recorrentes={recorrentes || []} plano={plano} clientes={clientes} lancamentos={lancamentos} currentUser={currentUser} addAudit={addAudit} saveRecorr={saveRecorr} saveLanc={saveLanc} />}
 
       {/* ABA LANÇAMENTOS */}
       {tab === 'avulsos' && <>
