@@ -1449,100 +1449,275 @@ function CicloFinanceiro({ lancamentos, clientes, plano, periodo }) {
 // ═══════════════════════════════════════════════════════
 // CONCILIAÇÃO BANCÁRIA
 // ═══════════════════════════════════════════════════════
-function Conciliacao({ lancamentos, currentUser, addAudit, saveLanc }) {
-  const [rows, setRows] = useState([]);
-  const [err, setErr] = useState('');
+function Conciliacao({ lancamentos, clientes, plano, currentUser, addAudit, saveLanc }) {
+  const [rows, setRows]       = useState([]);
+  const [err, setErr]         = useState('');
+  const [novoForm, setNovoForm] = useState(null); // extId being created
 
+  // ── Parsers ──────────────────────────────────────────
   const parseCSV = (text) => {
     const lines = text.trim().split('\n').filter(l => l.trim());
     return lines.slice(1).map(line => {
       const cols = line.split(';').map(c => c.trim().replace(/"/g, ''));
       const dateStr = cols[0]?.includes('/') ? cols[0].split('/').reverse().join('-') : cols[0];
-      const val = parseFloat((cols[2] || '0').replace(/\./g,'').replace(',', '.')) || 0;
-      return { id: uid(), data: dateStr, historico: cols[1] || '', valor: Math.abs(val), tipo: val >= 0 ? 'credito' : 'debito', conciliado: false, lancamento_id: null };
-    }).filter(r => r.historico);
+      const val = parseFloat((cols[2] || '0').replace(/\./g, '').replace(',', '.')) || 0;
+      return { id: uid(), data: dateStr, historico: cols[1] || '', valor: Math.abs(val), tipo: val >= 0 ? 'credito' : 'debito' };
+    }).filter(r => r.historico && r.valor > 0);
   };
 
   const parseOFX = (text) => {
-    const stmts = text.split('<STMTTRN>').slice(1);
-    return stmts.map(stmt => {
+    return text.split('<STMTTRN>').slice(1).map(stmt => {
       const get = tag => { const m = stmt.match(new RegExp('<' + tag + '>([^<\n]+)')); return m ? m[1].trim() : ''; };
       const dr = get('DTPOSTED');
       const val = parseFloat(get('TRNAMT')) || 0;
-      return { id: uid(), data: dr ? `${dr.slice(0,4)}-${dr.slice(4,6)}-${dr.slice(6,8)}` : '', historico: get('MEMO') || get('NAME'), valor: Math.abs(val), tipo: val >= 0 ? 'credito' : 'debito', conciliado: false, lancamento_id: null };
-    }).filter(r => r.historico);
+      return { id: uid(), data: dr ? `${dr.slice(0,4)}-${dr.slice(4,6)}-${dr.slice(6,8)}` : '', historico: get('MEMO') || get('NAME'), valor: Math.abs(val), tipo: val >= 0 ? 'credito' : 'debito' };
+    }).filter(r => r.historico && r.valor > 0);
   };
 
+  // ── Auto-match: encontra o melhor lançamento para cada transação ──
+  const findMatch = (ext, lancs) => {
+    const tipo = ext.tipo === 'credito' ? 'receita' : 'despesa';
+    const candidates = lancs.filter(l =>
+      l.tipo === tipo &&
+      !l.dt_caixa_realizada &&
+      Math.abs(l.valor - ext.valor) < 0.02
+    );
+    if (!candidates.length) return null;
+
+    const scored = candidates.map(l => {
+      let score = 60; // valor bate = base
+
+      // Proximidade de data (usa dt_caixa_prevista)
+      if (l.dt_caixa_prevista && ext.data) {
+        const days = Math.abs(diffDays(l.dt_caixa_prevista, ext.data) ?? 99);
+        score += days === 0 ? 30 : days <= 3 ? 22 : days <= 7 ? 14 : days <= 15 ? 8 : days <= 30 ? 3 : 0;
+      }
+
+      // Similaridade de descrição (palavras com 4+ letras)
+      const extWords = ext.historico.toLowerCase().split(/\W+/).filter(w => w.length >= 4);
+      const descWords = l.descricao.toLowerCase().split(/\W+/).filter(w => w.length >= 4);
+      const hits = descWords.filter(w => extWords.some(ew => ew.includes(w) || w.includes(ew)));
+      score += hits.length * 8;
+
+      return { ...l, _score: score };
+    });
+
+    const best = scored.sort((a, b) => b._score - a._score)[0];
+    return best._score >= 60 ? best : null; // exige no mínimo valor batendo
+  };
+
+  // ── Import + auto-match ───────────────────────────────
   const onFile = e => {
     const file = e.target.files?.[0]; if (!file) return;
+    e.target.value = ''; // allow re-import same file
     const reader = new FileReader();
     reader.onload = ev => {
       try {
         const parsed = file.name.toLowerCase().endsWith('.ofx') ? parseOFX(ev.target.result) : parseCSV(ev.target.result);
-        if (!parsed.length) setErr('Nenhuma transação reconhecida. Verifique o formato (CSV: Data;Histórico;Valor;Saldo ou OFX padrão).');
-        else { setRows(parsed); setErr(''); }
+        if (!parsed.length) return setErr('Nenhuma transação reconhecida. Verifique o formato (CSV: Data;Histórico;Valor;Saldo ou OFX padrão).');
+        const withMatches = parsed.map(ext => ({
+          ...ext,
+          conciliado: false,
+          lancamento_id: null,
+          sugestao: findMatch(ext, lancamentos), // auto-match
+        }));
+        setRows(withMatches); setErr('');
       } catch { setErr('Erro ao processar o arquivo.'); }
     };
     reader.readAsText(file, 'ISO-8859-1');
   };
 
-  const vincular = async (extId, lancId) => {
+  // ── Confirmar conciliação ─────────────────────────────
+  const confirmar = async (extId, lancId) => {
     const ext = rows.find(r => r.id === extId);
-    const updated = rows.map(r => r.id === extId ? { ...r, lancamento_id: lancId, conciliado: !!lancId } : r);
-    setRows(updated);
-    if (lancId && ext) {
-      await saveLanc(lancamentos.map(l => l.id === lancId ? { ...l, dt_caixa_realizada: ext.data, status: 'realizado' } : l));
-      await addAudit('Conciliou extrato', 'Conciliação', `${ext.historico} → lançamento ${lancId}`);
-    }
+    if (!lancId || !ext) return;
+    setRows(prev => prev.map(r => r.id === extId ? { ...r, conciliado: true, lancamento_id: lancId, sugestao: null } : r));
+    await saveLanc(lancamentos.map(l => l.id === lancId ? { ...l, dt_caixa_realizada: ext.data, status: 'realizado' } : l));
+    await addAudit('Conciliou extrato', 'Conciliação', ext.historico);
   };
 
-  const pendentes = lancamentos.filter(l => !l.dt_caixa_realizada);
+  const ignorarSugestao = (extId) => {
+    setRows(prev => prev.map(r => r.id === extId ? { ...r, sugestao: null } : r));
+  };
+
+  // ── Criar lançamento direto da conciliação ────────────
+  const [criarForm, setCriarForm] = useState({ tipo: 'receita', conta_id: '', descricao: '', dt_competencia: '' });
+  const setC = (k, v) => setCriarForm(f => ({ ...f, [k]: v }));
+
+  const abrirCriar = (ext) => {
+    setCriarForm({
+      tipo: ext.tipo === 'credito' ? 'receita' : 'despesa',
+      conta_id: '',
+      descricao: ext.historico,
+      dt_competencia: ext.data,
+      cliente_id: '',
+      custo: '',
+    });
+    setNovoForm(ext.id);
+  };
+
+  const salvarNovo = async () => {
+    const ext = rows.find(r => r.id === novoForm);
+    if (!criarForm.conta_id || !criarForm.descricao) return alert('Preencha Descrição e Conta.');
+    const item = {
+      ...criarForm,
+      id: uid(),
+      valor: ext.valor,
+      custo: +criarForm.custo || 0,
+      dt_caixa_prevista: ext.data,
+      dt_caixa_realizada: ext.data,
+      status: 'realizado',
+      criado_por: currentUser.name,
+    };
+    const newLancs = [...lancamentos, item];
+    await saveLanc(newLancs);
+    setRows(prev => prev.map(r => r.id === ext.id ? { ...r, conciliado: true, lancamento_id: item.id, sugestao: null } : r));
+    await addAudit('Criou lançamento via conciliação', 'Conciliação', item.descricao);
+    setNovoForm(null);
+  };
+
+  // ── Stats ─────────────────────────────────────────────
   const conciliadas = rows.filter(r => r.conciliado).length;
+  const comSugestao = rows.filter(r => !r.conciliado && r.sugestao).length;
+  const pendentes   = rows.filter(r => !r.conciliado && !r.sugestao).length;
 
   return (
     <div>
       <PageHeader title="Conciliação Bancária" />
 
+      {/* Import */}
       <div style={{ ...S.card, marginBottom: 16 }}>
-        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 10 }}>Importar Extrato</div>
+        <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 8 }}>Importar Extrato Bancário</div>
         <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginBottom: 12 }}>
-          Aceita <strong>CSV</strong> (formato: Data;Histórico;Valor;Saldo — padrão da maioria dos bancos brasileiros) e <strong>OFX</strong> (Open Financial Exchange).
+          Aceita <strong>CSV</strong> (Data;Histórico;Valor;Saldo) e <strong>OFX</strong>. O sistema tenta fazer o match automático com lançamentos existentes.
         </div>
         <input type="file" accept=".csv,.ofx,.txt" onChange={onFile} style={{ fontSize: 13 }} />
         {err && <div style={{ color: RED, fontSize: 12, marginTop: 8 }}>{err}</div>}
-        {rows.length > 0 && <div style={{ fontSize: 12, color: TEAL_D, marginTop: 8, fontWeight: 500 }}>{rows.length} transações importadas · {conciliadas} conciliadas · {rows.length - conciliadas} pendentes</div>}
+        {rows.length > 0 && (
+          <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, fontWeight: 500, color: GREEN }}>✓ {conciliadas} conciliadas</span>
+            <span style={{ fontSize: 12, fontWeight: 500, color: BLUE }}>◎ {comSugestao} com sugestão</span>
+            <span style={{ fontSize: 12, fontWeight: 500, color: AMBER }}>◌ {pendentes} sem match</span>
+          </div>
+        )}
       </div>
 
       {rows.length > 0 && (
         <div style={S.card}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead><tr>{['Data','Histórico','Tipo','Valor','Vincular a Lançamento','Status'].map(h => <th key={h} style={S.TH}>{h}</th>)}</tr></thead>
+            <thead>
+              <tr>{['Data','Histórico do Extrato','Tipo','Valor','Match / Ação','Status'].map(h =>
+                <th key={h} style={S.TH}>{h}</th>)}</tr>
+            </thead>
             <tbody>
-              {rows.map(r => (
-                <tr key={r.id} style={{ background: r.conciliado ? GREEN_L : 'transparent' }}>
-                  <td style={{ ...S.TD, fontSize: 12, whiteSpace: 'nowrap' }}>{fmtDate(r.data)}</td>
-                  <td style={{ ...S.TD, fontSize: 12, maxWidth: 220 }}>{r.historico}</td>
-                  <td style={S.TD}><span style={S.tag(r.tipo === 'credito' ? TEAL_L : RED_L, r.tipo === 'credito' ? TEAL_D : RED)}>{r.tipo === 'credito' ? 'Crédito' : 'Débito'}</span></td>
-                  <td style={{ ...S.TD, fontWeight: 600, color: r.tipo === 'credito' ? TEAL_D : RED }}>{fmt(r.valor)}</td>
-                  <td style={S.TD}>
-                    {r.conciliado
-                      ? <span style={{ fontSize: 12, color: GREEN }}>✓ Conciliado</span>
-                      : (
-                        <select defaultValue="" onChange={ev => vincular(r.id, ev.target.value)} style={{ ...S.inp, width: 240, padding: '4px 8px', fontSize: 11 }}>
-                          <option value="">Selecione um lançamento...</option>
-                          {pendentes.filter(l => l.tipo === (r.tipo === 'credito' ? 'receita' : 'despesa')).map(l =>
-                            <option key={l.id} value={l.id}>{l.descricao} — {fmt(l.valor)}</option>
-                          )}
-                        </select>
-                      )}
-                  </td>
-                  <td style={S.TD}>
-                    {r.conciliado
-                      ? <span style={S.tag(GREEN_L, GREEN)}>Conciliado</span>
-                      : <span style={S.tag(AMBER_L, AMBER)}>Pendente</span>}
-                  </td>
-                </tr>
-              ))}
+              {rows.map(r => {
+                const isCriar = novoForm === r.id;
+                const contasFiltradas = plano.filter(p => p.tipo === criarForm.tipo);
+                return (
+                  <>
+                    <tr key={r.id} style={{ background: r.conciliado ? GREEN_L : r.sugestao ? BLUE_L : 'var(--color-background-primary)' }}>
+                      <td style={{ ...S.TD, fontSize: 12, whiteSpace: 'nowrap' }}>{fmtDate(r.data)}</td>
+                      <td style={{ ...S.TD, fontSize: 12, maxWidth: 200 }}>{r.historico}</td>
+                      <td style={S.TD}>
+                        <span style={S.tag(r.tipo === 'credito' ? TEAL_L : RED_L, r.tipo === 'credito' ? TEAL_D : RED)}>
+                          {r.tipo === 'credito' ? 'Crédito' : 'Débito'}
+                        </span>
+                      </td>
+                      <td style={{ ...S.TD, fontWeight: 600, color: r.tipo === 'credito' ? TEAL_D : RED }}>{fmt(r.valor)}</td>
+                      <td style={S.TD}>
+                        {r.conciliado ? (
+                          <span style={{ fontSize: 12, color: GREEN, fontWeight: 500 }}>✓ Conciliado</span>
+                        ) : r.sugestao ? (
+                          /* Auto-match suggestion */
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <div style={{ background: BLUE_L, borderRadius: 6, padding: '4px 10px', fontSize: 11 }}>
+                              <span style={{ color: BLUE, fontWeight: 600 }}>Sugestão: </span>
+                              <span style={{ color: 'var(--color-text-primary)' }}>{r.sugestao.descricao}</span>
+                              <span style={{ color: 'var(--color-text-secondary)' }}> · {fmt(r.sugestao.valor)}</span>
+                            </div>
+                            <button onClick={() => confirmar(r.id, r.sugestao.id)} style={S.sm(TEAL_L, TEAL_D)}>Confirmar ✓</button>
+                            <button onClick={() => ignorarSugestao(r.id)} style={S.sm('var(--color-background-secondary)', 'var(--color-text-secondary)')}>Ignorar</button>
+                          </div>
+                        ) : (
+                          /* Manual match + create */
+                          <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                            <select defaultValue="" onChange={ev => ev.target.value && confirmar(r.id, ev.target.value)}
+                              style={{ ...S.inp, width: 200, padding: '4px 8px', fontSize: 11 }}>
+                              <option value="">Vincular a lançamento...</option>
+                              {lancamentos.filter(l => l.tipo === (r.tipo === 'credito' ? 'receita' : 'despesa') && !l.dt_caixa_realizada)
+                                .map(l => <option key={l.id} value={l.id}>{l.descricao} — {fmt(l.valor)}</option>)}
+                            </select>
+                            <button onClick={() => abrirCriar(r)} style={S.sm(AMBER_L, AMBER)}>
+                              {isCriar ? '↑ Fechar' : '+ Criar Lançamento'}
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                      <td style={S.TD}>
+                        {r.conciliado
+                          ? <span style={S.tag(GREEN_L, GREEN)}>Conciliado</span>
+                          : r.sugestao
+                          ? <span style={S.tag(BLUE_L, BLUE)}>Sugestão</span>
+                          : <span style={S.tag(AMBER_L, AMBER)}>Pendente</span>}
+                      </td>
+                    </tr>
+
+                    {/* Mini-form inline para criar lançamento */}
+                    {isCriar && (
+                      <tr key={`${r.id}-form`}>
+                        <td colSpan={6} style={{ padding: '0 0 2px 0', background: AMBER_L }}>
+                          <div style={{ padding: '16px 20px', background: 'var(--color-background-primary)', margin: '0 2px 2px', borderRadius: 8 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: AMBER, marginBottom: 14 }}>
+                              Criar lançamento para: <span style={{ color: 'var(--color-text-primary)' }}>{r.historico}</span> · <span style={{ color: r.tipo === 'credito' ? TEAL_D : RED }}>{fmt(r.valor)}</span>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, alignItems: 'end' }}>
+                              <div>
+                                <label style={S.lbl}>Tipo</label>
+                                <select value={criarForm.tipo} onChange={e => setC('tipo', e.target.value)} style={S.inp}>
+                                  <option value="receita">Receita</option>
+                                  <option value="despesa">Despesa</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label style={S.lbl}>Conta *</label>
+                                <select value={criarForm.conta_id} onChange={e => setC('conta_id', e.target.value)} style={S.inp}>
+                                  <option value="">Selecione...</option>
+                                  {contasFiltradas.map(p => <option key={p.id} value={p.id}>{p.cod} — {p.nome}</option>)}
+                                </select>
+                              </div>
+                              <div style={{ gridColumn: 'span 2' }}>
+                                <label style={S.lbl}>Descrição *</label>
+                                <input value={criarForm.descricao} onChange={e => setC('descricao', e.target.value)} style={S.inp} />
+                              </div>
+                              <div>
+                                <label style={S.lbl}>Data de Competência</label>
+                                <input type="date" value={criarForm.dt_competencia} onChange={e => setC('dt_competencia', e.target.value)} style={S.inp} />
+                              </div>
+                              <div>
+                                <label style={S.lbl}>Cliente</label>
+                                <select value={criarForm.cliente_id} onChange={e => setC('cliente_id', e.target.value)} style={S.inp}>
+                                  <option value="">— Nenhum —</option>
+                                  {clientes.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                                </select>
+                              </div>
+                              {criarForm.tipo === 'receita' && (
+                                <div>
+                                  <label style={S.lbl}>Custo (para margem)</label>
+                                  <input type="number" value={criarForm.custo} onChange={e => setC('custo', e.target.value)} style={S.inp} min="0" step="0.01" />
+                                </div>
+                              )}
+                              <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', gridColumn: criarForm.tipo === 'receita' ? 'auto' : 'span 2' }}>
+                                <button onClick={salvarNovo} style={{ ...S.btn(TEAL), flex: 1 }}>Criar e Conciliar ✓</button>
+                                <button onClick={() => setNovoForm(null)} style={S.btn('var(--color-background-secondary)', 'var(--color-text-secondary)')}>✕</button>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                );
+              })}
             </tbody>
           </table>
         </div>
