@@ -47,33 +47,34 @@ const U0 = [
 
 const P0 = [
   // ── 1. RECEITA OPERACIONAL ─────────────────────────────
-  { id: 'r1',  cod: '1.1', nome: 'Retainer / Mensalidade',          grupo: 'Receita Operacional',        tipo: 'receita' },
-  { id: 'r2',  cod: '1.2', nome: 'Diagnóstico Financeiro',          grupo: 'Receita Operacional',        tipo: 'receita' },
-  { id: 'r3',  cod: '1.3', nome: 'Implantação / Projeto',           grupo: 'Receita Operacional',        tipo: 'receita' },
-  { id: 'r4',  cod: '1.4', nome: 'Mentoria / Advisory',             grupo: 'Receita Operacional',        tipo: 'receita' },
-  { id: 'r5',  cod: '1.5', nome: 'Outras Receitas Operacionais',    grupo: 'Receita Operacional',        tipo: 'receita' },
+  // prazo_meses = prazo médio de recebimento (PMR) após emissão da NF
+  { id: 'r1',  cod: '1.1', nome: 'Retainer / Mensalidade',          grupo: 'Receita Operacional',        tipo: 'receita', prazo_meses: 0 },
+  { id: 'r2',  cod: '1.2', nome: 'Diagnóstico Financeiro',          grupo: 'Receita Operacional',        tipo: 'receita', prazo_meses: 0 },
+  { id: 'r3',  cod: '1.3', nome: 'Implantação / Projeto',           grupo: 'Receita Operacional',        tipo: 'receita', prazo_meses: 0 },
+  { id: 'r4',  cod: '1.4', nome: 'Mentoria / Advisory',             grupo: 'Receita Operacional',        tipo: 'receita', prazo_meses: 0 },
+  { id: 'r5',  cod: '1.5', nome: 'Outras Receitas Operacionais',    grupo: 'Receita Operacional',        tipo: 'receita', prazo_meses: 0 },
 
   // ── 2. DEDUÇÕES SOBRE VENDAS ──────────────────────────
-  { id: 'ded1', cod: '2.1', nome: 'Impostos sobre Receita',         grupo: 'Deduções sobre Vendas',      tipo: 'despesa' },
-  { id: 'ded2', cod: '2.2', nome: 'Taxas Bancárias e de Transação', grupo: 'Deduções sobre Vendas',      tipo: 'despesa' },
-  { id: 'ded3', cod: '2.3', nome: 'Devoluções e Cancelamentos',     grupo: 'Deduções sobre Vendas',      tipo: 'despesa' },
+  { id: 'ded1', cod: '2.1', nome: 'Impostos sobre Receita',         grupo: 'Deduções sobre Vendas',      tipo: 'despesa', prazo_meses: 1 }, // pago mês seguinte
+  { id: 'ded2', cod: '2.2', nome: 'Taxas Bancárias e de Transação', grupo: 'Deduções sobre Vendas',      tipo: 'despesa', prazo_meses: 0 },
+  { id: 'ded3', cod: '2.3', nome: 'Devoluções e Cancelamentos',     grupo: 'Deduções sobre Vendas',      tipo: 'despesa', prazo_meses: 0 },
 
   // ── 3. CUSTOS VARIÁVEIS (CVS) ─────────────────────────
-  { id: 'cv1',  cod: '3.1', nome: 'Pessoal de Operação',            grupo: 'Custos Variáveis',           tipo: 'despesa' },
-  { id: 'cv2',  cod: '3.2', nome: 'Comissões de Vendas',            grupo: 'Custos Variáveis',           tipo: 'despesa' },
-  { id: 'cv3',  cod: '3.3', nome: 'Ferramentas e Plataformas',      grupo: 'Custos Variáveis',           tipo: 'despesa' },
-  { id: 'cv4',  cod: '3.4', nome: 'Outros Custos Variáveis',        grupo: 'Custos Variáveis',           tipo: 'despesa' },
+  { id: 'cv1',  cod: '3.1', nome: 'Pessoal de Operação',            grupo: 'Custos Variáveis',           tipo: 'despesa', prazo_meses: 1 }, // pago mês seguinte
+  { id: 'cv2',  cod: '3.2', nome: 'Comissões de Vendas',            grupo: 'Custos Variáveis',           tipo: 'despesa', prazo_meses: 1 }, // pago mês seguinte
+  { id: 'cv3',  cod: '3.3', nome: 'Ferramentas e Plataformas',      grupo: 'Custos Variáveis',           tipo: 'despesa', prazo_meses: 0 },
+  { id: 'cv4',  cod: '3.4', nome: 'Outros Custos Variáveis',        grupo: 'Custos Variáveis',           tipo: 'despesa', prazo_meses: 0 },
 
   // ── 4. DESPESAS VARIÁVEIS (SG&A) ──────────────────────
-  { id: 'dv1',  cod: '4.1', nome: 'Marketing e Vendas',             grupo: 'Despesas Variáveis',         tipo: 'despesa' },
-  { id: 'dv2',  cod: '4.2', nome: 'Outras Despesas Variáveis',      grupo: 'Despesas Variáveis',         tipo: 'despesa' },
+  { id: 'dv1',  cod: '4.1', nome: 'Marketing e Vendas',             grupo: 'Despesas Variáveis',         tipo: 'despesa', prazo_meses: 0 },
+  { id: 'dv2',  cod: '4.2', nome: 'Outras Despesas Variáveis',      grupo: 'Despesas Variáveis',         tipo: 'despesa', prazo_meses: 0 },
 
   // ── 5. DESPESAS FIXAS (G&A) ───────────────────────────
-  { id: 'df1',  cod: '5.1', nome: 'Pessoal Administrativo',         grupo: 'Despesas Fixas',             tipo: 'despesa' },
-  { id: 'df2',  cod: '5.2', nome: 'Ocupação',                       grupo: 'Despesas Fixas',             tipo: 'despesa' },
-  { id: 'df3',  cod: '5.3', nome: 'Tecnologia e Infraestrutura',    grupo: 'Despesas Fixas',             tipo: 'despesa' },
-  { id: 'df4',  cod: '5.4', nome: 'Serviços Profissionais',         grupo: 'Despesas Fixas',             tipo: 'despesa' },
-  { id: 'df5',  cod: '5.5', nome: 'Outras Despesas Fixas',          grupo: 'Despesas Fixas',             tipo: 'despesa' },
+  { id: 'df1',  cod: '5.1', nome: 'Pessoal Administrativo',         grupo: 'Despesas Fixas',             tipo: 'despesa', prazo_meses: 1 }, // pago mês seguinte
+  { id: 'df2',  cod: '5.2', nome: 'Ocupação',                       grupo: 'Despesas Fixas',             tipo: 'despesa', prazo_meses: 0 },
+  { id: 'df3',  cod: '5.3', nome: 'Tecnologia e Infraestrutura',    grupo: 'Despesas Fixas',             tipo: 'despesa', prazo_meses: 0 },
+  { id: 'df4',  cod: '5.4', nome: 'Serviços Profissionais',         grupo: 'Despesas Fixas',             tipo: 'despesa', prazo_meses: 0 },
+  { id: 'df5',  cod: '5.5', nome: 'Outras Despesas Fixas',          grupo: 'Despesas Fixas',             tipo: 'despesa', prazo_meses: 0 },
 
   // ── 6. OUTRAS RECEITAS E DESPESAS ─────────────────────
   { id: 'or1',  cod: '6.1', nome: 'Receitas Financeiras',           grupo: 'Outras Receitas e Despesas', tipo: 'receita' },
@@ -108,6 +109,12 @@ const fmtDate = d => d ? new Date(d + 'T12:00:00').toLocaleDateString('pt-BR') :
 const mk = d => d?.slice(0, 7) ?? '';
 const ml = k => { if (!k) return ''; const [y, m] = k.split('-'); return ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][+m-1] + '/' + y.slice(2); };
 const diffDays = (a, b) => a && b ? Math.round((new Date(b) - new Date(a)) / 86400000) : null;
+const shiftMonth = (monthKey, n) => {
+  if (!monthKey || !n) return monthKey;
+  const [y, m] = monthKey.split('-').map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
 const getMonths = (count, offset = 0) => {
   const r = [], d = new Date();
   for (let i = offset; i < offset + count; i++) {
@@ -596,14 +603,13 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
       const novos = Array.from({ length: n }, (_, i) => {
         const id = uid();
         const dtVcto = addMonths(primeiraData, i);
-        const rec = { ...form, id, descricao: `${form.descricao} (${i + 1}/${n})`, valor: valorParcela, custo: +(custos.comissao / n).toFixed(2), dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status: 'previsto', criado_por: currentUser.name };
-        // Comissão dividida proporcionalmente em cada parcela
+        const rec = { ...form, id, descricao: `${form.descricao} (${i + 1}/${n})`, valor: valorParcela, custo: +(custos.total / n).toFixed(2), dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status: 'previsto', criado_por: currentUser.name };
+        // Comissão e Imposto ambos proporcionais por parcela (NF mensal)
         const comissoes = buildComissao(id, `${form.descricao} (${i+1}/${n})`, valorParcela, form.dt_competencia, dtVcto, 'previsto', form.cliente_id);
-        return [rec, ...comissoes];
+        const impostos  = buildImposto(`${form.descricao} (${i+1}/${n})`, valorParcela, form.dt_competencia, 'previsto', form.cliente_id);
+        return [rec, ...comissoes, ...impostos];
       }).flat();
-      // Imposto lançado UMA VEZ sobre o valor total, no mês de competência
-      const impostos = buildImposto(form.descricao, +form.valor, form.dt_competencia, 'previsto', form.cliente_id);
-      await saveLanc([...lancamentos, ...novos, ...impostos]);
+      await saveLanc([...lancamentos, ...novos]);
       await addAudit('Criou lançamento parcelado', 'Lançamento', `${form.descricao} — ${n}x de ${fmt(valorParcela)}`);
     } else {
       const id = form.id || uid();
@@ -708,10 +714,17 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
               </select>
             </Field>
             <Field label="Conta (Plano de Contas) *">
-              <select value={form.conta_id || ''} onChange={e => setF('conta_id', e.target.value)} style={S.inp}>
+              <select value={form.conta_id || ''} onChange={e => {
+                const id = e.target.value;
+                setF('conta_id', id);
+                const conta = plano.find(p => p.id === id);
+                if (conta?.prazo_meses > 0 && form.dt_competencia) {
+                  setF('dt_caixa_prevista', addMonths(form.dt_competencia, conta.prazo_meses));
+                }
+              }} style={S.inp}>
                 <option value="">Selecione...</option>
                 {plano.filter(p => p.tipo === (form.tipo || 'receita')).map(p =>
-                  <option key={p.id} value={p.id}>{p.cod} — {p.nome}</option>)}
+                  <option key={p.id} value={p.id}>{p.cod} — {p.nome}{p.prazo_meses > 0 ? ` (+${p.prazo_meses}m caixa)` : ''}</option>)}
               </select>
             </Field>
             <Field label="Cliente">
@@ -908,7 +921,7 @@ function PlanoContas({ plano, currentUser, addAudit, savePlano }) {
 
   const onSave = async () => {
     if (!form.nome?.trim() || !form.cod?.trim()) return alert('Código e Nome são obrigatórios.');
-    const item = { ...form, id: form.id || uid() };
+    const item = { ...form, id: form.id || uid(), prazo_meses: +form.prazo_meses || 0 };
     const isNew = !form.id;
     const next = isNew ? [...plano, item] : plano.map(p => p.id === item.id ? item : p);
     await savePlano(next.sort((a, b) => a.cod.localeCompare(b.cod)));
@@ -932,9 +945,14 @@ function PlanoContas({ plano, currentUser, addAudit, savePlano }) {
       <div key={grupo} style={{ marginBottom: 14 }}>
         <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '.09em', textTransform: 'uppercase', color: tipo === 'receita' ? TEAL_D : RED, background: tipo === 'receita' ? TEAL_L : RED_L, borderRadius: 5, padding: '4px 10px', marginBottom: 2 }}>{grupo}</div>
         {contas.map(p => (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 10px', borderBottom: '0.5px solid var(--color-border-tertiary)' }}>
+          <div key={p.id} style={{ display: 'flex', alignItems: 'center', padding: '8px 10px', borderBottom: '0.5px solid var(--color-border-tertiary)', gap: 8 }}>
             <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--color-text-secondary)', width: 36, flexShrink: 0 }}>{p.cod}</span>
             <span style={{ flex: 1, fontSize: 13 }}>{p.nome}</span>
+            {(p.prazo_meses > 0) && (
+              <span title="Prazo médio de caixa" style={{ fontSize: 10, fontWeight: 600, color: BLUE, background: BLUE_L, borderRadius: 4, padding: '2px 7px', flexShrink: 0 }}>
+                +{p.prazo_meses}m
+              </span>
+            )}
             <div style={{ display: 'flex', gap: 4 }}>
               <button onClick={() => { setForm({ ...p }); setModal(true); }} style={S.sm('var(--color-background-secondary)', 'var(--color-text-secondary)')}>✎</button>
               <button onClick={() => onDel(p.id, p.nome)} style={S.sm(RED_L, RED)}>✕</button>
@@ -948,8 +966,14 @@ function PlanoContas({ plano, currentUser, addAudit, savePlano }) {
   return (
     <div>
       <PageHeader title="Plano de Contas" action={
-        <button onClick={() => { setForm({ tipo: 'receita', cod: '', nome: '', grupo: '' }); setModal(true); }} style={S.btn(TEAL)}>+ Nova Conta</button>
+        <button onClick={() => { setForm({ tipo: 'receita', cod: '', nome: '', grupo: '', prazo_meses: 0 }); setModal(true); }} style={S.btn(TEAL)}>+ Nova Conta</button>
       } />
+
+      <div style={{ ...S.card, marginBottom: 16, fontSize: 12, color: 'var(--color-text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 13 }}>ℹ️</span>
+        <span>O campo <strong>Prazo de Caixa</strong> (badge <span style={{ color: BLUE }}>+1m</span>) define quantos meses após a competência o valor entra/sai do caixa. Ex: Impostos = +1 mês, Pessoal = +1 mês.</span>
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div style={S.card}>
           <div style={{ fontSize: 14, fontWeight: 600, color: TEAL_D, marginBottom: 14 }}>Receitas</div>
@@ -979,6 +1003,13 @@ function PlanoContas({ plano, currentUser, addAudit, savePlano }) {
             <Field label="Grupo">
               <input list="grupos-dl" value={form.grupo || ''} onChange={e => setF('grupo', e.target.value)} style={S.inp} placeholder="ex: Receita Operacional" />
               <datalist id="grupos-dl">{grupos.map(g => <option key={g} value={g} />)}</datalist>
+            </Field>
+            <Field label="Prazo de Caixa (meses após competência)">
+              <input type="number" value={form.prazo_meses || 0} onChange={e => setF('prazo_meses', e.target.value)}
+                style={S.inp} min="0" max="12" step="1" />
+              <div style={{ fontSize: 11, color: 'var(--color-text-secondary)', marginTop: 4 }}>
+                0 = mesmo mês · 1 = mês seguinte (impostos, pessoal) · 2 = dois meses depois
+              </div>
             </Field>
           </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 20, justifyContent: 'flex-end' }}>
@@ -1264,10 +1295,21 @@ function FluxoCaixa({ lancamentos, plano, periodo }) {
   const FINANCIAMENTO_GRUPOS = ['Atividade de Financiamento'];
 
   // Soma por conta individual, separando realizado e previsto
+  // Para previsto: usa dt_caixa_prevista se definida, senão aplica prazo_meses sobre dt_competencia
   const sumConta = (contaId, month) => {
+    const conta = plano.find(p => p.id === contaId);
+    const prazo = conta?.prazo_meses || 0;
     const ls = lancamentos.filter(l => l.conta_id === contaId);
-    const real  = ls.filter(l => l.status === 'realizado' && mk(l.dt_caixa_realizada) === month).reduce((s,l) => s+l.valor, 0);
-    const prev  = ls.filter(l => l.status === 'previsto'  && mk(l.dt_caixa_prevista)  === month).reduce((s,l) => s+l.valor, 0);
+    const real = ls.filter(l =>
+      l.status === 'realizado' && mk(l.dt_caixa_realizada) === month
+    ).reduce((s,l) => s+l.valor, 0);
+    const prev = ls.filter(l => {
+      if (l.status !== 'previsto') return false;
+      const dtCaixa = l.dt_caixa_prevista
+        ? mk(l.dt_caixa_prevista)
+        : shiftMonth(mk(l.dt_competencia), prazo);
+      return dtCaixa === month;
+    }).reduce((s,l) => s+l.valor, 0);
     return { real, prev, total: real + (showPrev ? prev : 0) };
   };
 
