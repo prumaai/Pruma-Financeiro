@@ -640,8 +640,16 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
       const impostos  = isNew ? buildImposto(form.descricao, item.valor, dtVcto, form.status, form.cliente_id) : [];
       const base = isNew ? [...lancamentos, item] : lancamentos.map(l => l.id === item.id ? item : l);
       await saveLanc([...base, ...comissoes, ...impostos]);
+
+      // Se marcado como recorrente, salva também na lista de recorrentes
+      if (isNew && form.recorrente) {
+        const dia = form.dt_caixa_prevista ? new Date(form.dt_caixa_prevista + 'T12:00:00').getDate() : 1;
+        const recItem = { id: uid(), tipo: form.tipo, descricao: form.descricao, conta_id: form.conta_id, cliente_id: form.cliente_id || '', valor: +form.valor, dia_vencimento: dia, criado_por: currentUser.name };
+        await saveRecorr([...(recorrentes || []), recItem]);
+      }
+
       const nd = comissoes.length + impostos.length;
-      await addAudit(isNew ? 'Criou lançamento' : 'Editou lançamento', 'Lançamento', item.descricao + (nd ? ` + ${nd} despesa(s) vinculada(s)` : ''));
+      await addAudit(isNew ? 'Criou lançamento' : 'Editou lançamento', 'Lançamento', item.descricao + (nd ? ` + ${nd} despesa(s) vinculada(s)` : '') + (form.recorrente ? ' [recorrente]' : ''));
     }
     setModal(false); setParcelar(false);
   };
@@ -799,30 +807,50 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
             )}
           </div>
 
-          {/* Parcelamento */}
+          {/* Parcelamento + Recorrente */}
           {!form.id && (
-            <div style={{ marginTop: 16, padding: 14, background: parcelar ? TEAL_L : 'var(--color-background-secondary)', borderRadius: 8, border: `1px solid ${parcelar ? TEAL : 'var(--color-border-tertiary)'}` }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: parcelar ? 14 : 0 }}>
-                <input type="checkbox" id="parcelar" checked={parcelar} onChange={e => setParcelar(e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: TEAL }} />
-                <label htmlFor="parcelar" style={{ fontWeight: 500, cursor: 'pointer', color: TEAL_D, fontSize: 13 }}>
-                  Parcelar este lançamento
-                </label>
+            <div style={{ display: 'grid', gap: 10, marginTop: 16 }}>
+              {/* Parcelar */}
+              <div style={{ padding: 14, background: parcelar ? TEAL_L : 'var(--color-background-secondary)', borderRadius: 8, border: `1px solid ${parcelar ? TEAL : 'var(--color-border-tertiary)'}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: parcelar ? 14 : 0 }}>
+                  <input type="checkbox" id="parcelar" checked={parcelar} onChange={e => { setParcelar(e.target.checked); if (e.target.checked) setF('recorrente', false); }} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: TEAL }} />
+                  <label htmlFor="parcelar" style={{ fontWeight: 500, cursor: 'pointer', color: TEAL_D, fontSize: 13 }}>
+                    Parcelar este lançamento
+                  </label>
+                </div>
+                {parcelar && (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <Field label="Número de parcelas">
+                      <input type="number" value={numParcelas} onChange={e => setNumParcelas(Math.max(2, Math.min(48, +e.target.value)))} style={S.inp} min="2" max="48" />
+                    </Field>
+                    <Field label="Vencimento da 1ª parcela">
+                      <input type="date" value={primeiraData} onChange={e => setPrimeiraData(e.target.value)} style={S.inp} />
+                    </Field>
+                    {valorParcela && (
+                      <div style={{ gridColumn: '1 / -1', background: '#fff', borderRadius: 6, padding: '10px 14px', border: `1px solid ${TEAL_L}` }}>
+                        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Serão criados </span>
+                        <strong style={{ color: TEAL_D }}>{numParcelas} lançamentos</strong>
+                        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}> de </span>
+                        <strong style={{ color: TEAL_D }}>{fmt(valorParcela)}</strong>
+                        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}> com vencimento mensal a partir de {fmtDate(primeiraData || today())}.</span>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              {parcelar && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <Field label="Número de parcelas">
-                    <input type="number" value={numParcelas} onChange={e => setNumParcelas(Math.max(2, Math.min(48, +e.target.value)))} style={S.inp} min="2" max="48" />
-                  </Field>
-                  <Field label="Vencimento da 1ª parcela">
-                    <input type="date" value={primeiraData} onChange={e => setPrimeiraData(e.target.value)} style={S.inp} />
-                  </Field>
-                  {valorParcela && (
-                    <div style={{ gridColumn: '1 / -1', background: '#fff', borderRadius: 6, padding: '10px 14px', border: `1px solid ${TEAL_L}` }}>
-                      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Serão criados </span>
-                      <strong style={{ color: TEAL_D }}>{numParcelas} lançamentos</strong>
-                      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}> de </span>
-                      <strong style={{ color: TEAL_D }}>{fmt(valorParcela)}</strong>
-                      <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}> com vencimento mensal a partir de {fmtDate(primeiraData || today())}.</span>
+
+              {/* Recorrente */}
+              {!parcelar && (
+                <div style={{ padding: 14, background: form.recorrente ? BLUE_L : 'var(--color-background-secondary)', borderRadius: 8, border: `1px solid ${form.recorrente ? BLUE : 'var(--color-border-tertiary)'}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <input type="checkbox" id="recorrente" checked={!!form.recorrente} onChange={e => setF('recorrente', e.target.checked)} style={{ width: 16, height: 16, cursor: 'pointer', accentColor: BLUE }} />
+                    <label htmlFor="recorrente" style={{ fontWeight: 500, cursor: 'pointer', color: BLUE, fontSize: 13 }}>
+                      ↺ Repetir mensalmente (lançamento contínuo)
+                    </label>
+                  </div>
+                  {form.recorrente && (
+                    <div style={{ fontSize: 12, color: 'var(--color-text-secondary)', marginTop: 8, paddingLeft: 26 }}>
+                      Este lançamento será salvo como recorrente. Todo mês você pode ir em <strong>Lançamentos → Recorrentes</strong> e gerar todos de uma vez com um clique.
                     </div>
                   )}
                 </div>
