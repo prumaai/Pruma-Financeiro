@@ -608,8 +608,8 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
       const novos = Array.from({ length: n }, (_, i) => {
         const id = uid();
         const dtVcto = addMonths(primeiraData, i);
-        const rec = { ...form, id, descricao: `${form.descricao} (${i + 1}/${n})`, valor: valorParcela, custo: +(custos.total / n).toFixed(2), dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status: 'previsto', criado_por: currentUser.name };
-        // Comissão e Imposto proporcionais por parcela — cada um com sua data correta
+        // Cada parcela tem sua própria competência (mês da NF) e vencimento
+        const rec = { ...form, id, descricao: `${form.descricao} (${i + 1}/${n})`, valor: valorParcela, custo: +(custos.total / n).toFixed(2), dt_competencia: dtVcto, dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status: 'previsto', criado_por: currentUser.name };
         const comissoes = buildComissao(id, `${form.descricao} (${i+1}/${n})`, valorParcela, dtVcto, 'previsto', form.cliente_id);
         const impostos  = buildImposto(`${form.descricao} (${i+1}/${n})`, valorParcela, dtVcto, 'previsto', form.cliente_id);
         return [rec, ...comissoes, ...impostos];
