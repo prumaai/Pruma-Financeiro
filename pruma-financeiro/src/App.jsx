@@ -472,7 +472,7 @@ function Dashboard({ lancamentos, clientes, periodo }) {
 function CostBlock({ form, setF, calcCustos, plano }) {
   const custos = calcCustos(form);
   const despConta = plano.filter(p => p.tipo === 'despesa');
-  const nAtivos = [form.comissao_ativo, form.imposto_ativo, form.boleto_ativo].filter(Boolean).length;
+  const nAtivos = [form.comissao_ativo, form.imposto_ativo].filter(Boolean).length;
 
   const Row = ({ id, label, children }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--color-border-tertiary)', flexWrap: 'wrap' }}>
@@ -515,18 +515,7 @@ function CostBlock({ form, setF, calcCustos, plano }) {
             style={{ ...S.inp, width: 70 }} placeholder="%" min="0" max="100" step="0.1" />
           <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>%</span>
           <span style={{ fontSize: 12, fontWeight: 600, color: RED, minWidth: 90 }}>= {fmt(custos.imposto)}</span>
-          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>→ 2.1 Impostos (automático)</span>
-        </>}
-      </Row>
-
-      {/* Boleto */}
-      <Row id="chk-bol" label="Boleto">
-        {form.boleto_ativo && <>
-          <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>R$</span>
-          <input type="number" value={form.boleto_valor || ''} onChange={e => setF('boleto_valor', e.target.value)}
-            style={{ ...S.inp, width: 90 }} placeholder="0,00" min="0" step="0.01" />
-          <span style={{ fontSize: 12, fontWeight: 600, color: RED, minWidth: 90 }}>= {fmt(custos.boleto)}</span>
-          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>→ 2.2 Taxas Bancárias (automático)</span>
+          <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>→ 2.1 Impostos · lançado 1x no mês de competência</span>
         </>}
       </Row>
 
@@ -554,7 +543,6 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
   const emptyForm = { tipo: 'receita', status: 'previsto', descricao: '', conta_id: '', cliente_id: '', valor: '', dt_competencia: today(), dt_caixa_prevista: '', dt_caixa_realizada: '',
     comissao_ativo: false, comissao_pct: '', comissao_conta_id: '',
     imposto_ativo: false, imposto_pct: '',
-    boleto_ativo: false, boleto_valor: '',
   };
 
   // Encontra contas do plano por prefixo de código
@@ -565,10 +553,9 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
     const v = +f.valor || 0;
     const comissao = f.comissao_ativo ? +(v * (+f.comissao_pct || 0) / 100).toFixed(2) : 0;
     const imposto  = f.imposto_ativo  ? +(v * (+f.imposto_pct  || 0) / 100).toFixed(2) : 0;
-    const boleto   = f.boleto_ativo   ? +(+f.boleto_valor || 0) : 0;
-    const total = comissao + imposto + boleto;
+    const total = comissao + imposto;
     const margem = v > 0 ? ((v - total) / v * 100) : 0;
-    return { comissao, imposto, boleto, total, margem };
+    return { comissao, imposto, total, margem };
   };
 
   const addMonths = (dateStr, n) => {
@@ -584,22 +571,22 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
 
     const custos = calcCustos(form);
 
-    // Monta as despesas vinculadas automaticamente
-    const buildDespesas = (receitaId, descBase, valor, dtComp, dtVcto, status, clienteId) => {
-      const despesas = [];
-      if (form.comissao_ativo && custos.comissao > 0) {
-        const conta = plano.find(p => p.id === form.comissao_conta_id) || contaByPrefix('2.4') || plano.find(p => p.tipo === 'despesa');
-        despesas.push({ id: uid(), tipo: 'despesa', descricao: `Comissão — ${descBase}`, conta_id: conta?.id || '', valor: custos.comissao, custo: 0, dt_competencia: dtComp, dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status, cliente_id: clienteId, criado_por: currentUser.name, origem_id: receitaId });
-      }
-      if (form.imposto_ativo && custos.imposto > 0) {
-        const conta = contaByPrefix('2.5') || plano.find(p => p.tipo === 'despesa');
-        despesas.push({ id: uid(), tipo: 'despesa', descricao: `Imposto (${form.imposto_pct}%) — ${descBase}`, conta_id: conta?.id || '', valor: custos.imposto, custo: 0, dt_competencia: dtComp, dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status, cliente_id: clienteId, criado_por: currentUser.name, origem_id: receitaId });
-      }
-      if (form.boleto_ativo && custos.boleto > 0) {
-        const conta = contaByPrefix('2.6') || plano.find(p => p.tipo === 'despesa');
-        despesas.push({ id: uid(), tipo: 'despesa', descricao: `Custo boleto — ${descBase}`, conta_id: conta?.id || '', valor: custos.boleto, custo: 0, dt_competencia: dtComp, dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status, cliente_id: clienteId, criado_por: currentUser.name, origem_id: receitaId });
-      }
-      return despesas;
+    // Comissão proporcional a um valor base
+    const buildComissao = (receitaId, descBase, valorBase, dtComp, dtVcto, status, clienteId) => {
+      if (!form.comissao_ativo || !+form.comissao_pct) return [];
+      const valor = +(valorBase * (+form.comissao_pct) / 100).toFixed(2);
+      if (!valor) return [];
+      const conta = plano.find(p => p.id === form.comissao_conta_id) || contaByPrefix('3.2') || plano.find(p => p.tipo === 'despesa');
+      return [{ id: uid(), tipo: 'despesa', descricao: `Comissão ${form.comissao_pct}% — ${descBase}`, conta_id: conta?.id || '', valor, custo: 0, dt_competencia: dtComp, dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status, cliente_id: clienteId, criado_por: currentUser.name, origem_id: receitaId }];
+    };
+
+    // Imposto sempre sobre o valor TOTAL, lançado uma vez no mês de competência
+    const buildImposto = (descBase, valorTotal, dtComp, status, clienteId) => {
+      if (!form.imposto_ativo || !+form.imposto_pct) return [];
+      const valor = +(valorTotal * (+form.imposto_pct) / 100).toFixed(2);
+      if (!valor) return [];
+      const conta = contaByPrefix('2.1') || plano.find(p => p.tipo === 'despesa');
+      return [{ id: uid(), tipo: 'despesa', descricao: `Imposto ${form.imposto_pct}% — ${descBase}`, conta_id: conta?.id || '', valor, custo: 0, dt_competencia: dtComp, dt_caixa_prevista: dtComp, dt_caixa_realizada: '', status, cliente_id: clienteId, criado_por: currentUser.name }];
     };
 
     if (parcelar) {
@@ -609,21 +596,25 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
       const novos = Array.from({ length: n }, (_, i) => {
         const id = uid();
         const dtVcto = addMonths(primeiraData, i);
-        const rec = { ...form, id, descricao: `${form.descricao} (${i + 1}/${n})`, valor: valorParcela, custo: +(custos.total / n).toFixed(2), dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status: 'previsto', criado_por: currentUser.name };
-        const desps = buildDespesas(id, `${form.descricao} (${i+1}/${n})`, valorParcela, form.dt_competencia, dtVcto, 'previsto', form.cliente_id);
-        return [rec, ...desps];
+        const rec = { ...form, id, descricao: `${form.descricao} (${i + 1}/${n})`, valor: valorParcela, custo: +(custos.comissao / n).toFixed(2), dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status: 'previsto', criado_por: currentUser.name };
+        // Comissão dividida proporcionalmente em cada parcela
+        const comissoes = buildComissao(id, `${form.descricao} (${i+1}/${n})`, valorParcela, form.dt_competencia, dtVcto, 'previsto', form.cliente_id);
+        return [rec, ...comissoes];
       }).flat();
-      await saveLanc([...lancamentos, ...novos]);
+      // Imposto lançado UMA VEZ sobre o valor total, no mês de competência
+      const impostos = buildImposto(form.descricao, +form.valor, form.dt_competencia, 'previsto', form.cliente_id);
+      await saveLanc([...lancamentos, ...novos, ...impostos]);
       await addAudit('Criou lançamento parcelado', 'Lançamento', `${form.descricao} — ${n}x de ${fmt(valorParcela)}`);
     } else {
       const id = form.id || uid();
       const item = { ...form, id, valor: +form.valor || 0, custo: +custos.total.toFixed(2), criado_por: currentUser.name };
       const isNew = !form.id;
-      const despesas = isNew ? buildDespesas(id, form.descricao, item.valor, form.dt_competencia, form.dt_caixa_prevista, form.status, form.cliente_id) : [];
+      const comissoes = isNew ? buildComissao(id, form.descricao, item.valor, form.dt_competencia, form.dt_caixa_prevista, form.status, form.cliente_id) : [];
+      const impostos  = isNew ? buildImposto(form.descricao, item.valor, form.dt_competencia, form.status, form.cliente_id) : [];
       const base = isNew ? [...lancamentos, item] : lancamentos.map(l => l.id === item.id ? item : l);
-      await saveLanc([...base, ...despesas]);
-      const nDespesas = despesas.length;
-      await addAudit(isNew ? 'Criou lançamento' : 'Editou lançamento', 'Lançamento', item.descricao + (nDespesas ? ` + ${nDespesas} despesa(s) vinculada(s)` : ''));
+      await saveLanc([...base, ...comissoes, ...impostos]);
+      const nd = comissoes.length + impostos.length;
+      await addAudit(isNew ? 'Criou lançamento' : 'Editou lançamento', 'Lançamento', item.descricao + (nd ? ` + ${nd} despesa(s) vinculada(s)` : ''));
     }
     setModal(false); setParcelar(false);
   };
@@ -1263,118 +1254,119 @@ function FluxoCaixa({ lancamentos, plano, periodo }) {
   const [startMonth, setStartMonth] = useState(periodo.start);
   const [endMonth, setEndMonth]     = useState(periodo.end);
   const [saldo0, setSaldo0]         = useState('0');
+  const [showPrev, setShowPrev]     = useState(true); // mostrar previsto
   useEffect(() => { setStartMonth(periodo.start); setEndMonth(periodo.end); }, [periodo.start, periodo.end]);
 
   const monthRange = useMemo(() => buildMonthRange(startMonth, endMonth), [startMonth, endMonth]);
 
-  // Groups for each activity
-  const OPERACIONAL_GRUPOS  = ['Receita Operacional', 'Deduções sobre Vendas', 'Custos Variáveis', 'Despesas Variáveis', 'Despesas Fixas', 'IR e CSLL', 'Outras Receitas e Despesas'];
-  const INVESTIMENTO_GRUPOS = ['Atividade de Investimento'];
-  const FINANCIAMENTO_GRUPOS= ['Atividade de Financiamento'];
+  const OPERACIONAL_GRUPOS   = ['Receita Operacional', 'Deduções sobre Vendas', 'Custos Variáveis', 'Despesas Variáveis', 'Despesas Fixas', 'IR e CSLL', 'Outras Receitas e Despesas'];
+  const INVESTIMENTO_GRUPOS  = ['Atividade de Investimento'];
+  const FINANCIAMENTO_GRUPOS = ['Atividade de Financiamento'];
 
-  const sumByGroups = (grupos, tipos, month, status_filter) =>
-    plano.filter(p => grupos.includes(p.grupo) && tipos.includes(p.tipo))
-      .reduce((s, p) => s + lancamentos.filter(l =>
-        l.conta_id === p.id &&
-        mk(status_filter === 'realizado' ? l.dt_caixa_realizada : (l.dt_caixa_realizada || l.dt_caixa_prevista)) === month &&
-        (status_filter === 'todos' || l.status === status_filter)
-      ).reduce((ss, l) => ss + l.valor, 0), 0);
-
-  const computeFC = (month) => {
-    const sf = 'todos'; // show both realized + projected
-    const recOp   = sumByGroups(OPERACIONAL_GRUPOS, ['receita'], month, sf);
-    const despOp  = sumByGroups(OPERACIONAL_GRUPOS, ['despesa'], month, sf);
-    const resOp   = recOp - despOp;
-
-    const entInv  = sumByGroups(INVESTIMENTO_GRUPOS, ['receita'], month, sf);
-    const saiInv  = sumByGroups(INVESTIMENTO_GRUPOS, ['despesa'], month, sf);
-    const resInv  = entInv - saiInv;
-
-    const entFin  = sumByGroups(FINANCIAMENTO_GRUPOS, ['receita'], month, sf);
-    const saiFin  = sumByGroups(FINANCIAMENTO_GRUPOS, ['despesa'], month, sf);
-    const resFin  = entFin - saiFin;
-
-    const geracao = resOp + resInv + resFin;
-    return { recOp, despOp, resOp, entInv, saiInv, resInv, entFin, saiFin, resFin, geracao };
+  // Soma por conta individual, separando realizado e previsto
+  const sumConta = (contaId, month) => {
+    const ls = lancamentos.filter(l => l.conta_id === contaId);
+    const real  = ls.filter(l => l.status === 'realizado' && mk(l.dt_caixa_realizada) === month).reduce((s,l) => s+l.valor, 0);
+    const prev  = ls.filter(l => l.status === 'previsto'  && mk(l.dt_caixa_prevista)  === month).reduce((s,l) => s+l.valor, 0);
+    return { real, prev, total: real + (showPrev ? prev : 0) };
   };
+
+  // Contas ativas de um conjunto de grupos
+  const contasDe = (grupos, tipo_f) =>
+    plano.filter(p => grupos.includes(p.grupo) && (!tipo_f || p.tipo === tipo_f))
+      .sort((a,b) => a.cod.localeCompare(b.cod));
+
+  // Soma de um grupo de contas num mês
+  const sumGrupo = (grupos, tipo_f, month) =>
+    contasDe(grupos, tipo_f).reduce((s,p) => {
+      const v = sumConta(p.id, month);
+      return s + v.total;
+    }, 0);
 
   const fcData = useMemo(() => {
     let saldo = +saldo0 || 0;
     return monthRange.map(m => {
-      const v = computeFC(m);
+      const recOp  = sumGrupo(OPERACIONAL_GRUPOS, 'receita', m);
+      const despOp = sumGrupo(OPERACIONAL_GRUPOS, 'despesa', m);
+      const resOp  = recOp - despOp;
+      const entInv = sumGrupo(INVESTIMENTO_GRUPOS, 'receita', m);
+      const saiInv = sumGrupo(INVESTIMENTO_GRUPOS, 'despesa', m);
+      const resInv = entInv - saiInv;
+      const entFin = sumGrupo(FINANCIAMENTO_GRUPOS, 'receita', m);
+      const saiFin = sumGrupo(FINANCIAMENTO_GRUPOS, 'despesa', m);
+      const resFin = entFin - saiFin;
+      const geracao = resOp + resInv + resFin;
       const si = saldo;
-      const sf = saldo + v.geracao;
+      const sf = saldo + geracao;
       saldo = sf;
-      return { m, ...v, si, sf };
+      return { m, recOp, despOp, resOp, entInv, saiInv, resInv, entFin, saiFin, resFin, geracao, si, sf };
     });
-  }, [lancamentos, monthRange, saldo0, plano]);
+  }, [lancamentos, monthRange, saldo0, plano, showPrev]);
 
-  const exportFC = () => {
-    const hdr = ['Linha', ...monthRange.map(ml), 'Total'];
-    const rows = [hdr];
-    const addRow = (label, key, indent) => {
-      const vals = fcData.map(r => r[key]);
-      rows.push([(indent ? '  ' : '') + label, ...vals, vals.reduce((a,b) => a+b, 0)]);
-    };
-    rows.push(['ATIVIDADES OPERACIONAIS']);
-    addRow('Entradas Operacionais', 'recOp', true);
-    addRow('Saídas Operacionais', 'despOp', true);
-    addRow('RESULTADO OPERACIONAL', 'resOp', false);
-    rows.push(['ATIVIDADES DE INVESTIMENTO']);
-    addRow('Entradas de Investimento', 'entInv', true);
-    addRow('Saídas de Investimento', 'saiInv', true);
-    addRow('RESULTADO DE INVESTIMENTOS', 'resInv', false);
-    rows.push(['ATIVIDADES DE FINANCIAMENTO']);
-    addRow('Entradas de Financiamento', 'entFin', true);
-    addRow('Saídas de Financiamento', 'saiFin', true);
-    addRow('RESULTADO DE FINANCIAMENTOS', 'resFin', false);
-    rows.push(['SÍNTESE']);
-    addRow('Saldo Inicial', 'si', false);
-    addRow('Geração de Caixa', 'geracao', false);
-    addRow('Saldo Final', 'sf', false);
-    exportCSV(rows, `FluxoCaixa_Pruma_${startMonth}_${endMonth}.csv`);
-  };
+  const totalFor = key => fcData.reduce((s,r) => s + (r[key]||0), 0);
 
-  const totalFor = (key) => fcData.reduce((s, r) => s + (r[key] || 0), 0);
+  // Renderiza seção com contas detalhadas
+  const FCSection = ({ title, grupos, resKey, resLabel, bg, color }) => {
+    const recContas  = contasDe(grupos, 'receita');
+    const despContas = contasDe(grupos, 'despesa');
+    const allContas  = [...recContas, ...despContas];
+    // Filtra só contas com algum movimento no período
+    const ativas = allContas.filter(p => monthRange.some(m => {
+      const v = sumConta(p.id, m); return v.real + v.prev > 0;
+    }));
 
-  const FCSection = ({ title, rows: rowDefs, resKey, resLabel, bg, color }) => (
-    <>
-      <tr style={{ background: bg }}>
-        <td colSpan={monthRange.length + 2} style={{ padding: '8px 12px 4px', fontSize: 10, fontWeight: 800, letterSpacing: '.1em', color, textTransform: 'uppercase', position: 'sticky', left: 0 }}>{title}</td>
-      </tr>
-      {rowDefs.map(({ label, key, neg }) => (
-        <tr key={key} style={{ background: 'var(--color-background-primary)' }}>
-          <td style={{ ...S.TD, fontSize: 12, paddingLeft: 24, color: 'var(--color-text-secondary)', position: 'sticky', left: 0, background: 'var(--color-background-primary)' }}>{label}</td>
+    return (
+      <>
+        <tr style={{ background: bg }}>
+          <td colSpan={monthRange.length + 2} style={{ padding: '8px 12px 4px', fontSize: 10, fontWeight: 800, letterSpacing: '.1em', color, textTransform: 'uppercase', position: 'sticky', left: 0 }}>{title}</td>
+        </tr>
+        {ativas.map(p => {
+          const isDesp = p.tipo === 'despesa';
+          const totPeriodo = monthRange.reduce((s,m) => s + sumConta(p.id, m).total, 0);
+          return (
+            <tr key={p.id} style={{ background: 'var(--color-background-primary)' }}>
+              <td style={{ ...S.TD, fontSize: 11, paddingLeft: 24, color: 'var(--color-text-secondary)', position: 'sticky', left: 0, background: 'var(--color-background-primary)' }}>
+                {p.cod} — {p.nome}
+              </td>
+              {monthRange.map(m => {
+                const v = sumConta(p.id, m);
+                const tot = v.real + (showPrev ? v.prev : 0);
+                return (
+                  <td key={m} style={{ ...S.TD, textAlign: 'right', fontSize: 11 }}>
+                    {v.real > 0 && <div style={{ color: isDesp ? RED : TEAL_D, fontWeight: 500 }}>{fmt(v.real)}</div>}
+                    {showPrev && v.prev > 0 && <div style={{ color: 'var(--color-text-secondary)', fontSize: 10 }}>+{fmt(v.prev)} prev</div>}
+                    {tot === 0 && <span style={{ color: 'var(--color-text-secondary)' }}>—</span>}
+                  </td>
+                );
+              })}
+              <td style={{ ...S.TD, textAlign: 'right', fontSize: 11, fontWeight: 600, color: isDesp ? RED : TEAL_D }}>{totPeriodo ? fmt(totPeriodo) : '—'}</td>
+            </tr>
+          );
+        })}
+        {ativas.length === 0 && (
+          <tr><td colSpan={monthRange.length + 2} style={{ ...S.TD, fontSize: 11, color: 'var(--color-text-secondary)', paddingLeft: 24, fontStyle: 'italic' }}>Nenhum lançamento no período</td></tr>
+        )}
+        <tr style={{ background: 'var(--color-background-secondary)', borderTop: '1px solid var(--color-border-tertiary)' }}>
+          <td style={{ ...S.TD, fontWeight: 700, paddingLeft: 12, position: 'sticky', left: 0, background: 'var(--color-background-secondary)' }}>{resLabel}</td>
           {fcData.map(r => (
-            <td key={r.m} style={{ ...S.TD, textAlign: 'right', fontSize: 12, color: neg ? RED : TEAL_D }}>
-              {r[key] ? (neg ? `(${fmt(r[key])})` : fmt(r[key])) : '—'}
+            <td key={r.m} style={{ ...S.TD, textAlign: 'right', fontWeight: 700, color: r[resKey] >= 0 ? TEAL_D : RED, background: 'var(--color-background-secondary)' }}>
+              {fmt(r[resKey])}
             </td>
           ))}
-          <td style={{ ...S.TD, textAlign: 'right', fontSize: 12, fontWeight: 500, color: neg ? RED : TEAL_D }}>
-            {totalFor(key) ? (neg ? `(${fmt(totalFor(key))})` : fmt(totalFor(key))) : '—'}
+          <td style={{ ...S.TD, textAlign: 'right', fontWeight: 800, color: totalFor(resKey) >= 0 ? TEAL_D : RED, background: 'var(--color-background-secondary)' }}>
+            {fmt(totalFor(resKey))}
           </td>
         </tr>
-      ))}
-      <tr style={{ background: 'var(--color-background-secondary)', borderTop: '1px solid var(--color-border-tertiary)' }}>
-        <td style={{ ...S.TD, fontWeight: 700, color: DARK, paddingLeft: 12, position: 'sticky', left: 0, background: 'var(--color-background-secondary)' }}>{resLabel}</td>
-        {fcData.map(r => (
-          <td key={r.m} style={{ ...S.TD, textAlign: 'right', fontWeight: 700, color: r[resKey] >= 0 ? TEAL_D : RED, background: 'var(--color-background-secondary)' }}>
-            {fmt(r[resKey])}
-          </td>
-        ))}
-        <td style={{ ...S.TD, textAlign: 'right', fontWeight: 800, color: totalFor(resKey) >= 0 ? TEAL_D : RED, background: 'var(--color-background-secondary)' }}>
-          {fmt(totalFor(resKey))}
-        </td>
-      </tr>
-    </>
-  );
+      </>
+    );
+  };
 
-  const SaldoRow = ({ label, key, highlight }) => (
+  const SaldoRow = ({ label, fkey, highlight }) => (
     <tr style={{ background: highlight ? TEAL_L : 'var(--color-background-secondary)', borderTop: highlight ? '2px solid var(--color-border-tertiary)' : 'none' }}>
       <td style={{ ...S.TD, fontWeight: highlight ? 800 : 600, fontSize: highlight ? 14 : 13, color: highlight ? TEAL_D : DARK, paddingLeft: 12, position: 'sticky', left: 0, background: highlight ? TEAL_L : 'var(--color-background-secondary)' }}>{label}</td>
       {fcData.map(r => (
-        <td key={r.m} style={{ ...S.TD, textAlign: 'right', fontWeight: highlight ? 800 : 600, fontSize: highlight ? 14 : 13, color: r[key] >= 0 ? TEAL_D : RED, background: highlight ? TEAL_L : 'var(--color-background-secondary)' }}>
-          {fmt(r[key])}
+        <td key={r.m} style={{ ...S.TD, textAlign: 'right', fontWeight: highlight ? 800 : 600, fontSize: highlight ? 14 : 13, color: r[fkey] >= 0 ? TEAL_D : RED, background: highlight ? TEAL_L : 'var(--color-background-secondary)' }}>
+          {fmt(r[fkey])}
         </td>
       ))}
       <td style={{ ...S.TD, textAlign: 'right', fontWeight: 800, color: TEAL_D, background: highlight ? TEAL_L : 'var(--color-background-secondary)' }}>—</td>
@@ -1384,62 +1376,52 @@ function FluxoCaixa({ lancamentos, plano, periodo }) {
   return (
     <div>
       <PageHeader title="Fluxo de Caixa" action={
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>De:</span>
           <input type="month" value={startMonth} onChange={e => setStartMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
           <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Até:</span>
           <input type="month" value={endMonth} onChange={e => setEndMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
-          <button onClick={exportFC} style={S.btn(TEAL_D)}>↓ CSV</button>
         </div>
       } />
 
-      <div style={{ ...S.card, marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
-        <label style={{ ...S.lbl, marginBottom: 0, whiteSpace: 'nowrap' }}>Saldo Inicial (R$):</label>
-        <input type="number" value={saldo0} onChange={e => setSaldo0(e.target.value)} style={{ ...S.inp, width: 180 }} />
-        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Use as contas 8.x (Investimentos) e 9.x (Financiamentos) no Plano de Contas para classificar esses fluxos.</span>
+      <div style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ ...S.card, padding: '10px 16px', display: 'flex', gap: 12, alignItems: 'center', margin: 0, flex: 1 }}>
+          <label style={{ ...S.lbl, marginBottom: 0, whiteSpace: 'nowrap', fontSize: 12 }}>Saldo Inicial (R$):</label>
+          <input type="number" value={saldo0} onChange={e => setSaldo0(e.target.value)} style={{ ...S.inp, width: 160 }} />
+        </div>
+        <button onClick={() => setShowPrev(v => !v)}
+          style={S.sm(showPrev ? BLUE : 'var(--color-background-primary)', showPrev ? '#fff' : 'var(--color-text-secondary)')}>
+          {showPrev ? '👁 Realizado + Previsto' : '👁 Só Realizado'}
+        </button>
       </div>
 
       <div style={{ ...S.card, overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: monthRange.length * 140 + 260 }}>
           <thead>
             <tr>
-              <th style={{ ...S.TH, textAlign: 'left', minWidth: 250, position: 'sticky', left: 0, background: '#111827', zIndex: 2 }}>Linha</th>
+              <th style={{ ...S.TH, textAlign: 'left', minWidth: 250, position: 'sticky', left: 0, background: '#111827', zIndex: 2 }}>Conta / Linha</th>
               {monthRange.map(m => <th key={m} style={{ ...S.TH, textAlign: 'center', minWidth: 130, background: mk(today()) === m ? `${TEAL}BB` : '#111827' }}>{ml(m)}{mk(today()) === m ? ' ●' : ''}</th>)}
               <th style={{ ...S.TH, textAlign: 'right', background: '#0a1628', minWidth: 120 }}>Total Período</th>
             </tr>
           </thead>
           <tbody>
-            <FCSection title="Atividades Operacionais" bg={TEAL_L} color={TEAL_D}
-              rows={[
-                { label: 'Receitas Operacionais Recebidas', key: 'recOp',  neg: false },
-                { label: 'Custos e Despesas Pagos',         key: 'despOp', neg: true  },
-              ]}
-              resKey="resOp" resLabel="= RESULTADO OPERACIONAL" />
+            <FCSection title="Atividades Operacionais" grupos={OPERACIONAL_GRUPOS}
+              resKey="resOp" resLabel="= RESULTADO OPERACIONAL" bg={TEAL_L} color={TEAL_D} />
 
-            <FCSection title="Atividades de Investimento" bg={BLUE_L} color={BLUE}
-              rows={[
-                { label: 'Entradas de Investimento', key: 'entInv', neg: false },
-                { label: 'Saídas de Investimento',   key: 'saiInv', neg: true  },
-              ]}
-              resKey="resInv" resLabel="= RESULTADO DE INVESTIMENTOS" />
+            <FCSection title="Atividades de Investimento" grupos={INVESTIMENTO_GRUPOS}
+              resKey="resInv" resLabel="= RESULTADO DE INVESTIMENTOS" bg={BLUE_L} color={BLUE} />
 
-            <FCSection title="Atividades de Financiamento" bg={AMBER_L} color={AMBER}
-              rows={[
-                { label: 'Entradas de Financiamento', key: 'entFin', neg: false },
-                { label: 'Saídas de Financiamento',   key: 'saiFin', neg: true  },
-              ]}
-              resKey="resFin" resLabel="= RESULTADO DE FINANCIAMENTOS" />
+            <FCSection title="Atividades de Financiamento" grupos={FINANCIAMENTO_GRUPOS}
+              resKey="resFin" resLabel="= RESULTADO DE FINANCIAMENTOS" bg={AMBER_L} color={AMBER} />
 
-            {/* Síntese */}
-            <tr><td colSpan={monthRange.length + 2} style={{ padding: '10px 12px 4px', fontSize: 10, fontWeight: 800, letterSpacing: '.1em', color: TEAL_D, background: TEAL_L, textTransform: 'uppercase', position: 'sticky', left: 0 }}>Síntese</td></tr>
-            <SaldoRow label="Saldo Inicial"   key_="si"      highlight={false} {...{key: 'row-si'}} />
-            <SaldoRow label="Geração de Caixa" key_="geracao" highlight={false} {...{key: 'row-g'}} />
-            <SaldoRow label="SALDO FINAL"     key_="sf"      highlight={true}  {...{key: 'row-sf'}} />
+            <tr><td colSpan={monthRange.length + 2} style={{ padding: '10px 12px 4px', fontSize: 10, fontWeight: 800, letterSpacing: '.1em', color: TEAL_D, background: TEAL_L, textTransform: 'uppercase' }}>Síntese</td></tr>
+            <SaldoRow label="Saldo Inicial"    fkey="si"      highlight={false} />
+            <SaldoRow label="Geração de Caixa" fkey="geracao" highlight={false} />
+            <SaldoRow label="SALDO FINAL"      fkey="sf"      highlight={true}  />
           </tbody>
         </table>
       </div>
 
-      {/* Chart */}
       <div style={{ ...S.card, marginTop: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>Evolução do Saldo Final</div>
         <ResponsiveContainer width="100%" height={180}>
@@ -1449,8 +1431,8 @@ function FluxoCaixa({ lancamentos, plano, periodo }) {
             <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={70} tickFormatter={v => Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(v)} />
             <Tooltip formatter={(v, n) => [fmt(v), n]} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Area dataKey="Operacional"  stroke={TEAL} fill={TEAL_L} strokeWidth={2} />
-            <Area dataKey="Saldo Final"  stroke={BLUE} fill={BLUE_L} strokeWidth={2} />
+            <Area dataKey="Operacional" stroke={TEAL} fill={TEAL_L} strokeWidth={2} />
+            <Area dataKey="Saldo Final" stroke={BLUE} fill={BLUE_L} strokeWidth={2} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
