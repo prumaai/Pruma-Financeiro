@@ -28,18 +28,55 @@ const U0 = [
 ];
 
 const P0 = [
-  { id: 'r1', cod: '1.1', nome: 'Retainer / Mensalidade',   grupo: 'Receita Operacional',   tipo: 'receita' },
-  { id: 'r2', cod: '1.2', nome: 'Diagnóstico Financeiro',   grupo: 'Receita Operacional',   tipo: 'receita' },
-  { id: 'r3', cod: '1.3', nome: 'Implantação / Projeto',    grupo: 'Receita Operacional',   tipo: 'receita' },
-  { id: 'r4', cod: '1.4', nome: 'Mentoria / Advisory',      grupo: 'Receita Operacional',   tipo: 'receita' },
-  { id: 'r5', cod: '1.5', nome: 'Outras Receitas',          grupo: 'Receita Operacional',   tipo: 'receita' },
-  { id: 'd1', cod: '2.1', nome: 'Pessoal',                  grupo: 'Custos Operacionais',   tipo: 'despesa' },
-  { id: 'd2', cod: '2.2', nome: 'Ocupação',                 grupo: 'Custos Operacionais',   tipo: 'despesa' },
-  { id: 'd3', cod: '2.3', nome: 'Tecnologia',               grupo: 'Despesas Operacionais', tipo: 'despesa' },
-  { id: 'd4', cod: '2.4', nome: 'Marketing e Vendas',       grupo: 'Despesas Operacionais', tipo: 'despesa' },
-  { id: 'd5', cod: '2.5', nome: 'Impostos e Taxas',         grupo: 'Despesas Operacionais', tipo: 'despesa' },
-  { id: 'd6', cod: '2.6', nome: 'Financeiro',               grupo: 'Despesas Financeiras',  tipo: 'despesa' },
-  { id: 'd7', cod: '2.7', nome: 'Despesas Gerais',          grupo: 'Despesas Operacionais', tipo: 'despesa' },
+  // ── 1. RECEITA OPERACIONAL ─────────────────────────────
+  { id: 'r1',  cod: '1.1', nome: 'Retainer / Mensalidade',          grupo: 'Receita Operacional',        tipo: 'receita' },
+  { id: 'r2',  cod: '1.2', nome: 'Diagnóstico Financeiro',          grupo: 'Receita Operacional',        tipo: 'receita' },
+  { id: 'r3',  cod: '1.3', nome: 'Implantação / Projeto',           grupo: 'Receita Operacional',        tipo: 'receita' },
+  { id: 'r4',  cod: '1.4', nome: 'Mentoria / Advisory',             grupo: 'Receita Operacional',        tipo: 'receita' },
+  { id: 'r5',  cod: '1.5', nome: 'Outras Receitas Operacionais',    grupo: 'Receita Operacional',        tipo: 'receita' },
+
+  // ── 2. DEDUÇÕES SOBRE VENDAS ──────────────────────────
+  { id: 'ded1', cod: '2.1', nome: 'Impostos sobre Receita',         grupo: 'Deduções sobre Vendas',      tipo: 'despesa' },
+  { id: 'ded2', cod: '2.2', nome: 'Taxas Bancárias e de Transação', grupo: 'Deduções sobre Vendas',      tipo: 'despesa' },
+  { id: 'ded3', cod: '2.3', nome: 'Devoluções e Cancelamentos',     grupo: 'Deduções sobre Vendas',      tipo: 'despesa' },
+
+  // ── 3. CUSTOS VARIÁVEIS (CVS) ─────────────────────────
+  { id: 'cv1',  cod: '3.1', nome: 'Pessoal de Operação',            grupo: 'Custos Variáveis',           tipo: 'despesa' },
+  { id: 'cv2',  cod: '3.2', nome: 'Comissões de Vendas',            grupo: 'Custos Variáveis',           tipo: 'despesa' },
+  { id: 'cv3',  cod: '3.3', nome: 'Ferramentas e Plataformas',      grupo: 'Custos Variáveis',           tipo: 'despesa' },
+  { id: 'cv4',  cod: '3.4', nome: 'Outros Custos Variáveis',        grupo: 'Custos Variáveis',           tipo: 'despesa' },
+
+  // ── 4. DESPESAS VARIÁVEIS (SG&A) ──────────────────────
+  { id: 'dv1',  cod: '4.1', nome: 'Marketing e Vendas',             grupo: 'Despesas Variáveis',         tipo: 'despesa' },
+  { id: 'dv2',  cod: '4.2', nome: 'Outras Despesas Variáveis',      grupo: 'Despesas Variáveis',         tipo: 'despesa' },
+
+  // ── 5. DESPESAS FIXAS (G&A) ───────────────────────────
+  { id: 'df1',  cod: '5.1', nome: 'Pessoal Administrativo',         grupo: 'Despesas Fixas',             tipo: 'despesa' },
+  { id: 'df2',  cod: '5.2', nome: 'Ocupação',                       grupo: 'Despesas Fixas',             tipo: 'despesa' },
+  { id: 'df3',  cod: '5.3', nome: 'Tecnologia e Infraestrutura',    grupo: 'Despesas Fixas',             tipo: 'despesa' },
+  { id: 'df4',  cod: '5.4', nome: 'Serviços Profissionais',         grupo: 'Despesas Fixas',             tipo: 'despesa' },
+  { id: 'df5',  cod: '5.5', nome: 'Outras Despesas Fixas',          grupo: 'Despesas Fixas',             tipo: 'despesa' },
+
+  // ── 6. OUTRAS RECEITAS E DESPESAS ─────────────────────
+  { id: 'or1',  cod: '6.1', nome: 'Receitas Financeiras',           grupo: 'Outras Receitas e Despesas', tipo: 'receita' },
+  { id: 'or2',  cod: '6.2', nome: 'Outras Receitas Não Operacionais',grupo:'Outras Receitas e Despesas', tipo: 'receita' },
+  { id: 'od1',  cod: '6.3', nome: 'Despesas Financeiras',           grupo: 'Outras Receitas e Despesas', tipo: 'despesa' },
+  { id: 'od2',  cod: '6.4', nome: 'Outras Despesas Não Operacionais',grupo:'Outras Receitas e Despesas', tipo: 'despesa' },
+
+  // ── 7. IR E CSLL ──────────────────────────────────────
+  { id: 'ir1',  cod: '7.1', nome: 'Imposto de Renda (IRPJ)',        grupo: 'IR e CSLL',                  tipo: 'despesa' },
+  { id: 'ir2',  cod: '7.2', nome: 'CSLL',                           grupo: 'IR e CSLL',                  tipo: 'despesa' },
+
+  // ── 8. ATIVIDADES DE INVESTIMENTO (Fluxo de Caixa) ────
+  { id: 'inv1', cod: '8.1', nome: 'Aquisição de Ativos',            grupo: 'Atividade de Investimento',  tipo: 'despesa' },
+  { id: 'inv2', cod: '8.2', nome: 'Investimentos em Participações', grupo: 'Atividade de Investimento',  tipo: 'despesa' },
+  { id: 'inv3', cod: '8.3', nome: 'Recebimento de Investimentos',   grupo: 'Atividade de Investimento',  tipo: 'receita' },
+
+  // ── 9. ATIVIDADES DE FINANCIAMENTO (Fluxo de Caixa) ───
+  { id: 'fn1',  cod: '9.1', nome: 'Captação de Empréstimos',        grupo: 'Atividade de Financiamento', tipo: 'receita' },
+  { id: 'fn2',  cod: '9.2', nome: 'Pagamento de Dívidas',           grupo: 'Atividade de Financiamento', tipo: 'despesa' },
+  { id: 'fn3',  cod: '9.3', nome: 'Aporte de Sócios',               grupo: 'Atividade de Financiamento', tipo: 'receita' },
+  { id: 'fn4',  cod: '9.4', nome: 'Distribuição de Lucros',         grupo: 'Atividade de Financiamento', tipo: 'despesa' },
 ];
 
 // ═══════════════════════════════════════════════════════
@@ -416,7 +453,25 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
   const [primeiraData, setPrimeiraData] = useState('');
   const setF = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
-  const emptyForm = { tipo: 'receita', status: 'previsto', descricao: '', conta_id: '', cliente_id: '', valor: '', custo: '', dt_competencia: today(), dt_caixa_prevista: '', dt_caixa_realizada: '' };
+  const emptyForm = { tipo: 'receita', status: 'previsto', descricao: '', conta_id: '', cliente_id: '', valor: '', dt_competencia: today(), dt_caixa_prevista: '', dt_caixa_realizada: '',
+    comissao_ativo: false, comissao_pct: '', comissao_conta_id: '',
+    imposto_ativo: false, imposto_pct: '',
+    boleto_ativo: false, boleto_valor: '',
+  };
+
+  // Encontra contas do plano por prefixo de código
+  const contaByPrefix = (prefix) => plano.find(p => p.cod?.startsWith(prefix) && p.tipo === 'despesa');
+
+  // Calcula custo total estruturado
+  const calcCustos = (f) => {
+    const v = +f.valor || 0;
+    const comissao = f.comissao_ativo ? +(v * (+f.comissao_pct || 0) / 100).toFixed(2) : 0;
+    const imposto  = f.imposto_ativo  ? +(v * (+f.imposto_pct  || 0) / 100).toFixed(2) : 0;
+    const boleto   = f.boleto_ativo   ? +(+f.boleto_valor || 0) : 0;
+    const total = comissao + imposto + boleto;
+    const margem = v > 0 ? ((v - total) / v * 100) : 0;
+    return { comissao, imposto, boleto, total, margem };
+  };
 
   const addMonths = (dateStr, n) => {
     if (!dateStr) return '';
@@ -429,28 +484,48 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
     if (!form.descricao?.trim() || !form.valor || !form.conta_id || !form.dt_competencia)
       return alert('Preencha: Descrição, Conta, Valor e Data de Competência.');
 
+    const custos = calcCustos(form);
+
+    // Monta as despesas vinculadas automaticamente
+    const buildDespesas = (receitaId, descBase, valor, dtComp, dtVcto, status, clienteId) => {
+      const despesas = [];
+      if (form.comissao_ativo && custos.comissao > 0) {
+        const conta = plano.find(p => p.id === form.comissao_conta_id) || contaByPrefix('2.4') || plano.find(p => p.tipo === 'despesa');
+        despesas.push({ id: uid(), tipo: 'despesa', descricao: `Comissão — ${descBase}`, conta_id: conta?.id || '', valor: custos.comissao, custo: 0, dt_competencia: dtComp, dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status, cliente_id: clienteId, criado_por: currentUser.name, origem_id: receitaId });
+      }
+      if (form.imposto_ativo && custos.imposto > 0) {
+        const conta = contaByPrefix('2.5') || plano.find(p => p.tipo === 'despesa');
+        despesas.push({ id: uid(), tipo: 'despesa', descricao: `Imposto (${form.imposto_pct}%) — ${descBase}`, conta_id: conta?.id || '', valor: custos.imposto, custo: 0, dt_competencia: dtComp, dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status, cliente_id: clienteId, criado_por: currentUser.name, origem_id: receitaId });
+      }
+      if (form.boleto_ativo && custos.boleto > 0) {
+        const conta = contaByPrefix('2.6') || plano.find(p => p.tipo === 'despesa');
+        despesas.push({ id: uid(), tipo: 'despesa', descricao: `Custo boleto — ${descBase}`, conta_id: conta?.id || '', valor: custos.boleto, custo: 0, dt_competencia: dtComp, dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status, cliente_id: clienteId, criado_por: currentUser.name, origem_id: receitaId });
+      }
+      return despesas;
+    };
+
     if (parcelar) {
       if (!primeiraData) return alert('Informe a data de vencimento da primeira parcela.');
       const n = +numParcelas || 2;
       const valorParcela = +(+form.valor / n).toFixed(2);
-      const novos = Array.from({ length: n }, (_, i) => ({
-        ...form,
-        id: uid(),
-        descricao: `${form.descricao} (${i + 1}/${n})`,
-        valor: valorParcela,
-        custo: i === 0 ? (+form.custo || 0) : 0,
-        dt_caixa_prevista: addMonths(primeiraData, i),
-        dt_caixa_realizada: '',
-        status: 'previsto',
-        criado_por: currentUser.name,
-      }));
+      const novos = Array.from({ length: n }, (_, i) => {
+        const id = uid();
+        const dtVcto = addMonths(primeiraData, i);
+        const rec = { ...form, id, descricao: `${form.descricao} (${i + 1}/${n})`, valor: valorParcela, custo: +(custos.total / n).toFixed(2), dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status: 'previsto', criado_por: currentUser.name };
+        const desps = buildDespesas(id, `${form.descricao} (${i+1}/${n})`, valorParcela, form.dt_competencia, dtVcto, 'previsto', form.cliente_id);
+        return [rec, ...desps];
+      }).flat();
       await saveLanc([...lancamentos, ...novos]);
       await addAudit('Criou lançamento parcelado', 'Lançamento', `${form.descricao} — ${n}x de ${fmt(valorParcela)}`);
     } else {
-      const item = { ...form, id: form.id || uid(), valor: +form.valor || 0, custo: +form.custo || 0, criado_por: currentUser.name };
+      const id = form.id || uid();
+      const item = { ...form, id, valor: +form.valor || 0, custo: +custos.total.toFixed(2), criado_por: currentUser.name };
       const isNew = !form.id;
-      await saveLanc(isNew ? [...lancamentos, item] : lancamentos.map(l => l.id === item.id ? item : l));
-      await addAudit(isNew ? 'Criou lançamento' : 'Editou lançamento', 'Lançamento', item.descricao);
+      const despesas = isNew ? buildDespesas(id, form.descricao, item.valor, form.dt_competencia, form.dt_caixa_prevista, form.status, form.cliente_id) : [];
+      const base = isNew ? [...lancamentos, item] : lancamentos.map(l => l.id === item.id ? item : l);
+      await saveLanc([...base, ...despesas]);
+      const nDespesas = despesas.length;
+      await addAudit(isNew ? 'Criou lançamento' : 'Editou lançamento', 'Lançamento', item.descricao + (nDespesas ? ` + ${nDespesas} despesa(s) vinculada(s)` : ''));
     }
     setModal(false); setParcelar(false);
   };
@@ -833,74 +908,182 @@ function DRE({ lancamentos, plano, periodo }) {
   const [startMonth, setStartMonth] = useState(periodo.start);
   const [endMonth, setEndMonth]     = useState(periodo.end);
   const [view, setView]             = useState('realizado');
-  useEffect(() => { setStartMonth(periodo.start); setEndMonth(periodo.end); }, [periodo.start, periodo.end]);
   const [showAV, setShowAV]         = useState(true);
   const [showAH, setShowAH]         = useState(true);
+  useEffect(() => { setStartMonth(periodo.start); setEndMonth(periodo.end); }, [periodo.start, periodo.end]);
 
   const monthRange = useMemo(() => buildMonthRange(startMonth, endMonth), [startMonth, endMonth]);
-  const statusFilter = view === 'realizado' ? 'realizado' : null;
+  const sf = view === 'realizado' ? 'realizado' : null; // statusFilter
 
-  const sumContas = (contas, month) =>
-    contas.reduce((s, p) =>
-      s + lancamentos.filter(l =>
-        l.conta_id === p.id && mk(l.dt_competencia) === month && (!statusFilter || l.status === statusFilter)
-      ).reduce((ss, l) => ss + l.valor, 0)
-    , 0);
+  // Sum a group of plano accounts for a month
+  const sumG = (grupo, month, tipo_filter) =>
+    plano.filter(p => p.grupo === grupo && (!tipo_filter || p.tipo === tipo_filter))
+      .reduce((s, p) => s + lancamentos.filter(l =>
+        l.conta_id === p.id && mk(l.dt_competencia) === month && (!sf || l.status === sf)
+      ).reduce((ss, l) => ss + l.valor, 0), 0);
 
-  const G = (grupo) => plano.filter(p => p.grupo === grupo);
-  const Rec = plano.filter(p => p.tipo === 'receita');
-  const CO  = G('Custos Operacionais');
-  const DO  = G('Despesas Operacionais');
-  const DF  = G('Despesas Financeiras');
+  const sumConta = (id, month) =>
+    lancamentos.filter(l => l.conta_id === id && mk(l.dt_competencia) === month && (!sf || l.status === sf))
+      .reduce((s, l) => s + l.valor, 0);
 
-  const dreStructure = [
-    { type: 'section', label: '(+)  RECEITA OPERACIONAL', theme: 'receita' },
-    ...Rec.map(p => ({ type: 'conta', ...p })),
-    { type: 'total', label: 'RECEITA BRUTA', fn: m => sumContas(Rec, m), isRB: true },
-    { type: 'section', label: '(-)  CUSTOS OPERACIONAIS', theme: 'despesa' },
-    ...CO.map(p => ({ type: 'conta', ...p })),
-    { type: 'total', label: 'LUCRO BRUTO', fn: m => sumContas(Rec, m) - sumContas(CO, m) },
-    { type: 'section', label: '(-)  DESPESAS OPERACIONAIS', theme: 'despesa' },
-    ...DO.map(p => ({ type: 'conta', ...p })),
-    { type: 'total', label: 'EBITDA', fn: m => sumContas(Rec, m) - sumContas(CO, m) - sumContas(DO, m) },
-    { type: 'section', label: '(-)  DESPESAS FINANCEIRAS', theme: 'despesa' },
-    ...DF.map(p => ({ type: 'conta', ...p })),
-    { type: 'total', label: 'RESULTADO LÍQUIDO', fn: m => sumContas(Rec, m) - sumContas(plano.filter(p => p.tipo === 'despesa'), m), highlight: true },
-  ];
+  // Sequential computation per month → all DRE lines
+  const compute = (month) => {
+    const recBruta   = sumG('Receita Operacional', month);
+    const deducoes   = sumG('Deduções sobre Vendas', month);
+    const recLiq     = recBruta - deducoes;
+    const cvs        = sumG('Custos Variáveis', month);
+    const lucroBruto = recLiq - cvs;
+    const despVar    = sumG('Despesas Variáveis', month);
+    const margContrib = lucroBruto - despVar;
+    const despFix    = sumG('Despesas Fixas', month);
+    const ebitda     = margContrib - despFix;
+    const outrasRec  = sumG('Outras Receitas e Despesas', month, 'receita');
+    const outrasDes  = sumG('Outras Receitas e Despesas', month, 'despesa');
+    const antesIR    = ebitda + outrasRec - outrasDes;
+    const ir         = sumG('IR e CSLL', month);
+    const resLiq     = antesIR - ir;
+    const pe         = (recBruta > 0 && margContrib > 0) ? despFix / (margContrib / recBruta) : 0;
+    return { recBruta, deducoes, recLiq, cvs, lucroBruto, despVar, margContrib, despFix, ebitda, outrasRec, outrasDes, antesIR, ir, resLiq, pe };
+  };
 
-  // Pre-compute all values
-  const vals = useMemo(() => {
+  const allVals = useMemo(() => {
     const out = {};
-    for (const row of dreStructure) {
-      const key = row.label || row.id;
-      const fn = row.fn || (row.type === 'conta' ? (m => sumContas([row], m)) : null);
-      if (fn) { out[key] = {}; for (const m of monthRange) out[key][m] = fn(m); }
-    }
+    for (const m of monthRange) out[m] = compute(m);
     return out;
-  }, [lancamentos, monthRange, statusFilter, plano]);
+  }, [lancamentos, monthRange, view, plano]);
 
-  const rbVals = vals['RECEITA BRUTA'] || {};
+  // Account-level values
+  const contaVal = (id, month) => sumConta(id, month);
 
-  const exportExcel = () => {
-    const rows = [['Conta', ...monthRange.map(ml), 'Total']];
-    for (const row of dreStructure) {
-      if (row.type === 'section') { rows.push([row.label]); continue; }
-      const key = row.label || row.id;
-      const mv = monthRange.map(m => vals[key]?.[m] ?? 0);
-      const total = mv.reduce((a, b) => a + b, 0);
-      const label = row.type === 'conta' ? `  ${row.cod}  ${row.nome}` : row.label;
-      if (showAV) {
-        rows.push([label, ...monthRange.flatMap((m, i) => [mv[i], rbVals[m] > 0 ? (mv[i] / rbVals[m] * 100).toFixed(1) + '%' : '']), total]);
-      } else {
-        rows.push([label, ...mv, total]);
-      }
-    }
-    if (showAV) rows[0] = ['Conta', ...monthRange.flatMap(m => [ml(m), 'AV%']), 'Total'];
+  // CSV export
+  const exportCSV2 = () => {
+    const g = (grupo, tipo_f) => plano.filter(p => p.grupo === grupo && (!tipo_f || p.tipo === tipo_f));
+    const rows = [['Linha DRE', ...monthRange.map(ml), 'Total']];
+    const addRow = (label, fn, isMargin) => {
+      const vals = monthRange.map(fn);
+      const total = isMargin ? null : vals.reduce((a, b) => a + b, 0);
+      rows.push([label, ...vals.map(v => isMargin ? v.toFixed(1) + '%' : v), total ?? '']);
+    };
+    const addConta = (p) => addRow(`  ${p.cod} ${p.nome}`, m => contaVal(p.id, m), false);
+    const addTotal = (label, key) => addRow(label, m => allVals[m]?.[key] ?? 0, false);
+    const addMarg  = (label, num, den) => addRow(label, m => {
+      const d = allVals[m]?.[den] ?? 0;
+      return d !== 0 ? (allVals[m]?.[num] ?? 0) / d * 100 : 0;
+    }, true);
+    rows.push(['1. RECEITA OPERACIONAL BRUTA']);
+    g('Receita Operacional').forEach(addConta);
+    addTotal('RECEITA OPERACIONAL BRUTA', 'recBruta');
+    rows.push(['2. DEDUÇÕES SOBRE VENDAS']);
+    g('Deduções sobre Vendas').forEach(addConta);
+    addTotal('RECEITA LÍQUIDA', 'recLiq');
+    rows.push(['3. CUSTOS VARIÁVEIS (CVS)']);
+    g('Custos Variáveis').forEach(addConta);
+    addTotal('LUCRO BRUTO', 'lucroBruto');
+    addMarg('Margem Bruta %', 'lucroBruto', 'recBruta');
+    rows.push(['4. DESPESAS VARIÁVEIS']);
+    g('Despesas Variáveis').forEach(addConta);
+    addTotal('MARGEM DE CONTRIBUIÇÃO', 'margContrib');
+    addMarg('Margem de Contribuição %', 'margContrib', 'recBruta');
+    rows.push(['5. DESPESAS FIXAS (G&A)']);
+    g('Despesas Fixas').forEach(addConta);
+    addTotal('EBITDA', 'ebitda');
+    addMarg('Margem EBITDA %', 'ebitda', 'recBruta');
+    rows.push(['6. OUTRAS RECEITAS E DESPESAS']);
+    g('Outras Receitas e Despesas').forEach(addConta);
+    addTotal('RESULTADO ANTES DO IR', 'antesIR');
+    rows.push(['7. IR E CSLL']);
+    g('IR e CSLL').forEach(addConta);
+    addTotal('RESULTADO LÍQUIDO', 'resLiq');
+    addMarg('Margem Líquida %', 'resLiq', 'recBruta');
     exportCSV(rows, `DRE_Pruma_${startMonth}_${endMonth}.csv`);
   };
 
-  const toggleBtn = (active, label, onClick, color = BLUE) =>
-    <button onClick={onClick} style={S.sm(active ? color : 'var(--color-background-primary)', active ? '#fff' : 'var(--color-text-secondary)')}>{label}</button>;
+  // Render helpers
+  const fmtPct = v => v === 0 ? '—' : (v > 0 ? '' : '') + v.toFixed(1) + '%';
+  const fmtAH  = (cur, prev) => prev !== 0 ? (cur - prev) / Math.abs(prev) * 100 : null;
+  const btnToggle = (active, label, fn, color = BLUE) =>
+    <button onClick={fn} style={S.sm(active ? color : 'var(--color-background-primary)', active ? '#fff' : 'var(--color-text-secondary)')}>{label}</button>;
+
+  const DARK_HDR = '#111827';
+
+  // Section themes
+  const secTheme = {
+    'Receita Operacional':        { bg: TEAL_L, color: TEAL_D },
+    'Deduções sobre Vendas':      { bg: RED_L,  color: RED },
+    'Custos Variáveis':           { bg: RED_L,  color: RED },
+    'Despesas Variáveis':         { bg: RED_L,  color: RED },
+    'Despesas Fixas':             { bg: RED_L,  color: RED },
+    'Outras Receitas e Despesas': { bg: BLUE_L, color: BLUE },
+    'IR e CSLL':                  { bg: AMBER_L,color: AMBER },
+  };
+
+  const renderSection = (num, label, grupo, tipo_f, totalKey, totalLabel, marginKey, marginLabel, highlight) => {
+    const contas = plano.filter(p => p.grupo === grupo && (!tipo_f || p.tipo === tipo_f)).sort((a,b) => a.cod.localeCompare(b.cod));
+    const theme = secTheme[grupo] || { bg: BLUE_L, color: BLUE };
+    const totalVals = monthRange.map(m => allVals[m]?.[totalKey] ?? 0);
+    const grandTotal = totalVals.reduce((a,b) => a+b, 0);
+    const totalRB = monthRange.reduce((s,m) => s + (allVals[m]?.recBruta ?? 0), 0);
+
+    return [
+      // Section header
+      <tr key={`sec-${grupo}`}>
+        <td colSpan={monthRange.length + 2 + (showAV ? 1 : 0)} style={{ padding: '8px 12px 4px', fontSize: 10, fontWeight: 800, letterSpacing: '.1em', color: theme.color, background: theme.bg, textTransform: 'uppercase', position: 'sticky', left: 0 }}>
+          {num}. {label}
+        </td>
+      </tr>,
+      // Account rows
+      ...contas.map(p => {
+        const mv = monthRange.map(m => contaVal(p.id, m));
+        const tot = mv.reduce((a,b) => a+b, 0);
+        return (
+          <tr key={p.id} style={{ background: 'var(--color-background-primary)' }}>
+            <td style={{ ...S.TD, fontSize: 12, paddingLeft: 24, color: 'var(--color-text-secondary)', position: 'sticky', left: 0, background: 'var(--color-background-primary)' }}>{p.cod}  {p.nome}</td>
+            {mv.map((v, i) => {
+              const prev = i > 0 ? contaVal(p.id, monthRange[i-1]) : null;
+              const ah = prev !== null ? fmtAH(v, prev) : null;
+              return <td key={monthRange[i]} style={{ ...S.TD, textAlign: 'right', fontSize: 12, background: 'var(--color-background-primary)' }}>
+                <div>{v ? fmt(v) : '—'}</div>
+                {showAH && ah !== null && <div style={{ fontSize: 9, color: ah >= 0 ? TEAL_D : RED }}>{ah >= 0 ? '▲' : '▼'} {Math.abs(ah).toFixed(1)}%</div>}
+              </td>;
+            })}
+            <td style={{ ...S.TD, textAlign: 'right', fontSize: 12, fontWeight: 500, background: 'var(--color-background-primary)' }}>{tot ? fmt(tot) : '—'}</td>
+            {showAV && <td style={{ ...S.TD, textAlign: 'right', fontSize: 10, color: BLUE, background: 'var(--color-background-primary)' }}>{totalRB > 0 ? fmtPct(tot/totalRB*100) : '—'}</td>}
+          </tr>
+        );
+      }),
+      // Total row
+      <tr key={`tot-${totalKey}`} style={{ background: highlight ? TEAL_L : 'var(--color-background-secondary)', borderTop: '1px solid var(--color-border-tertiary)' }}>
+        <td style={{ ...S.TD, fontWeight: highlight ? 800 : 700, fontSize: highlight ? 14 : 13, color: DARK, position: 'sticky', left: 0, background: highlight ? TEAL_L : 'var(--color-background-secondary)', paddingLeft: 12 }}>{totalLabel}</td>
+        {totalVals.map((v, i) => {
+          const prev = i > 0 ? (allVals[monthRange[i-1]]?.[totalKey] ?? 0) : null;
+          const ah = prev !== null ? fmtAH(v, prev) : null;
+          const rb = allVals[monthRange[i]]?.recBruta ?? 0;
+          const av = rb > 0 ? v / rb * 100 : null;
+          return <td key={monthRange[i]} style={{ ...S.TD, textAlign: 'right', fontWeight: 700, color: v >= 0 ? TEAL_D : RED, background: highlight ? TEAL_L : 'var(--color-background-secondary)' }}>
+            <div style={{ fontSize: highlight ? 14 : 13 }}>{v ? fmt(v) : '—'}</div>
+            {showAV && av !== null && <div style={{ fontSize: 9, color: BLUE }}>{fmtPct(av)}</div>}
+            {showAH && ah !== null && <div style={{ fontSize: 9, color: ah >= 0 ? TEAL_D : RED }}>{ah >= 0 ? '▲' : '▼'}{Math.abs(ah).toFixed(1)}%</div>}
+          </td>;
+        })}
+        <td style={{ ...S.TD, textAlign: 'right', fontWeight: 800, color: grandTotal >= 0 ? TEAL_D : RED, background: highlight ? TEAL_L : 'var(--color-background-secondary)', fontSize: highlight ? 14 : 13 }}>{grandTotal ? fmt(grandTotal) : '—'}</td>
+        {showAV && <td style={{ ...S.TD, textAlign: 'right', fontSize: 10, color: BLUE, background: highlight ? TEAL_L : 'var(--color-background-secondary)' }}>{totalRB > 0 ? fmtPct(grandTotal/totalRB*100) : '—'}</td>}
+      </tr>,
+      // Margin row (if requested)
+      ...(marginKey ? [
+        <tr key={`marg-${marginKey}`} style={{ background: 'var(--color-background-secondary)' }}>
+          <td style={{ ...S.TD, fontSize: 11, fontStyle: 'italic', color: BLUE, paddingLeft: 16, position: 'sticky', left: 0, background: 'var(--color-background-secondary)' }}>{marginLabel}</td>
+          {monthRange.map((m, i) => {
+            const v = allVals[m]?.[totalKey] ?? 0;
+            const rb = allVals[m]?.recBruta ?? 0;
+            const pct = rb > 0 ? v / rb * 100 : 0;
+            return <td key={m} style={{ ...S.TD, textAlign: 'right', fontSize: 11, color: pct >= 0 ? TEAL_D : RED, fontWeight: 600, background: 'var(--color-background-secondary)' }}>{fmtPct(pct)}</td>;
+          })}
+          <td style={{ ...S.TD, textAlign: 'right', fontSize: 11, color: grandTotal >= 0 ? TEAL_D : RED, fontWeight: 600, background: 'var(--color-background-secondary)' }}>{totalRB > 0 ? fmtPct(grandTotal/totalRB*100) : '—'}</td>
+          {showAV && <td />}
+        </tr>
+      ] : []),
+    ];
+  };
 
   return (
     <div>
@@ -910,96 +1093,63 @@ function DRE({ lancamentos, plano, periodo }) {
           <input type="month" value={startMonth} onChange={e => setStartMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
           <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Até:</span>
           <input type="month" value={endMonth} onChange={e => setEndMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
-          <button onClick={exportExcel} style={S.btn(TEAL_D)}>↓ CSV</button>
+          <button onClick={exportCSV2} style={S.btn(TEAL_D)}>↓ CSV</button>
         </div>
       } />
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-        {toggleBtn(view === 'realizado', 'Realizado', () => setView('realizado'), TEAL)}
-        {toggleBtn(view === 'orcado', 'Orçado (Total)', () => setView('orcado'), TEAL)}
-        <div style={{ width: 1, height: 20, background: 'var(--color-border-tertiary)', margin: '0 4px' }} />
-        {toggleBtn(showAV, 'AV% ' + (showAV ? '✓' : ''), () => setShowAV(v => !v))}
-        {toggleBtn(showAH, 'AH% ' + (showAH ? '✓' : ''), () => setShowAH(v => !v))}
-        <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>
-          AV% = % da Receita Bruta &nbsp;·&nbsp; AH% = variação vs mês anterior
-        </span>
+        {btnToggle(view === 'realizado', 'Realizado', () => setView('realizado'), TEAL)}
+        {btnToggle(view === 'orcado', 'Orçado (Total)', () => setView('orcado'), TEAL)}
+        <div style={{ width: 1, height: 16, background: 'var(--color-border-tertiary)' }} />
+        {btnToggle(showAV, 'AV% ' + (showAV ? '✓' : ''), () => setShowAV(v => !v))}
+        {btnToggle(showAH, 'AH% ' + (showAH ? '✓' : ''), () => setShowAH(v => !v))}
+        <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>AV% = % da Receita Bruta · AH% = variação vs mês anterior</span>
       </div>
 
       <div style={{ ...S.card, overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: monthRange.length * 150 + 240 }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: monthRange.length * 140 + 260 }}>
           <thead>
             <tr>
-              <th style={{ ...S.TH, textAlign: 'left', minWidth: 230, position: 'sticky', left: 0, background: '#111827', zIndex: 2 }}>Conta</th>
-              {monthRange.map((m, i) => (
-                <th key={m} style={{ ...S.TH, textAlign: 'center', minWidth: 130, background: mk(today()) === m ? `${TEAL}BB` : '#111827' }}>
-                  {ml(m)}{mk(today()) === m ? ' ●' : ''}
-                </th>
-              ))}
+              <th style={{ ...S.TH, textAlign: 'left', minWidth: 250, position: 'sticky', left: 0, background: DARK_HDR, zIndex: 2 }}>Conta</th>
+              {monthRange.map(m => <th key={m} style={{ ...S.TH, textAlign: 'center', minWidth: 130, background: mk(today()) === m ? `${TEAL}BB` : DARK_HDR }}>{ml(m)}{mk(today()) === m ? ' ●' : ''}</th>)}
               <th style={{ ...S.TH, textAlign: 'right', background: '#0a1628', minWidth: 120 }}>Total</th>
               {showAV && <th style={{ ...S.TH, textAlign: 'right', background: '#0a1628', fontSize: 9, color: TEAL }}>AV%</th>}
             </tr>
           </thead>
           <tbody>
-            {dreStructure.map((row, ri) => {
-              if (row.type === 'section') {
-                const bg = row.theme === 'receita' ? TEAL_L : RED_L;
-                const color = row.theme === 'receita' ? TEAL_D : RED;
-                return (
-                  <tr key={ri}>
-                    <td colSpan={monthRange.length + 1 + (showAV ? 1 : 0) + 1} style={{ padding: '8px 12px 4px', fontSize: 10, fontWeight: 800, letterSpacing: '.1em', color, background: bg, textTransform: 'uppercase', position: 'sticky', left: 0 }}>
-                      {row.label}
-                    </td>
-                  </tr>
-                );
-              }
+            {renderSection('1', 'RECEITA OPERACIONAL BRUTA',  'Receita Operacional',        null,      'recBruta',    'RECEITA OPERACIONAL BRUTA', null, null, false)}
+            {renderSection('2', 'DEDUÇÕES SOBRE VENDAS',       'Deduções sobre Vendas',     null,      'recLiq',      'RECEITA LÍQUIDA',           null, null, false)}
 
-              const key = row.label || row.id;
-              const isTotal = row.type === 'total';
-              const fn = row.fn || (m => sumContas([row], m));
-              const mv = monthRange.map(m => vals[key]?.[m] ?? 0);
-              const total = mv.reduce((a, b) => a + b, 0);
-              const totalRB = monthRange.reduce((s, m) => s + (rbVals[m] || 0), 0);
-              const bg = row.highlight ? TEAL_L : isTotal ? 'var(--color-background-secondary)' : ri % 2 === 0 ? 'var(--color-background-secondary)' : 'var(--color-background-primary)';
-              const nameColor = isTotal ? DARK : 'var(--color-text-primary)';
+            {/* Margem Receita Líquida standalone */}
+            <tr style={{ background: 'var(--color-background-secondary)' }}>
+              <td style={{ ...S.TD, fontSize: 11, fontStyle: 'italic', color: BLUE, paddingLeft: 16, position: 'sticky', left: 0, background: 'var(--color-background-secondary)' }}>Margem Receita Líquida %</td>
+              {monthRange.map(m => { const v = allVals[m]; const pct = v?.recBruta > 0 ? v.recLiq/v.recBruta*100 : 0; return <td key={m} style={{ ...S.TD, textAlign: 'right', fontSize: 11, color: pct >= 0 ? TEAL_D : RED, fontWeight: 600, background: 'var(--color-background-secondary)' }}>{fmtPct(pct)}</td>; })}
+              <td style={{ ...S.TD, textAlign: 'right', fontSize: 11, color: TEAL_D, background: 'var(--color-background-secondary)' }}>
+                {(() => { const rb = monthRange.reduce((s,m)=>s+(allVals[m]?.recBruta??0),0); const rl = monthRange.reduce((s,m)=>s+(allVals[m]?.recLiq??0),0); return rb > 0 ? fmtPct(rl/rb*100) : '—'; })()}
+              </td>
+              {showAV && <td />}
+            </tr>
 
-              return (
-                <tr key={ri} style={{ borderTop: isTotal ? '1px solid var(--color-border-tertiary)' : 'none' }}>
-                  <td style={{ ...S.TD, fontWeight: row.highlight ? 800 : isTotal ? 700 : 400, fontSize: row.highlight ? 14 : 13, color: nameColor, background: bg, position: 'sticky', left: 0, paddingLeft: isTotal ? 12 : 24 }}>
-                    {row.type === 'conta' ? `${row.cod}  ${row.nome}` : row.label}
-                  </td>
-                  {mv.map((v, i) => {
-                    const rb = rbVals[monthRange[i]] || 0;
-                    const av = rb > 0 ? v / rb * 100 : null;
-                    const prev = i > 0 ? (vals[key]?.[monthRange[i - 1]] ?? 0) : null;
-                    const ah = prev !== null && prev !== 0 ? (v - prev) / Math.abs(prev) * 100 : null;
-                    const valColor = isTotal ? (v >= 0 ? TEAL_D : RED) : row.tipo === 'despesa' ? 'var(--color-text-secondary)' : 'var(--color-text-primary)';
-                    return (
-                      <td key={monthRange[i]} style={{ ...S.TD, textAlign: 'right', background: bg, verticalAlign: 'top' }}>
-                        <div style={{ fontWeight: isTotal ? 700 : 400, color: valColor, fontSize: row.highlight ? 14 : 13 }}>
-                          {v ? fmt(v) : '—'}
-                        </div>
-                        {showAV && av !== null && (
-                          <div style={{ fontSize: 10, color: BLUE, marginTop: 1 }}>{av.toFixed(1)}% RB</div>
-                        )}
-                        {showAH && ah !== null && (
-                          <div style={{ fontSize: 10, color: ah >= 0 ? TEAL_D : RED, marginTop: 1 }}>
-                            {ah >= 0 ? '▲' : '▼'} {Math.abs(ah).toFixed(1)}%
-                          </div>
-                        )}
-                      </td>
-                    );
-                  })}
-                  <td style={{ ...S.TD, textAlign: 'right', fontWeight: row.highlight ? 800 : isTotal ? 700 : 500, color: isTotal ? (total >= 0 ? TEAL_D : RED) : 'var(--color-text-primary)', background: bg, fontSize: row.highlight ? 14 : 13 }}>
-                    {total ? fmt(total) : '—'}
-                  </td>
-                  {showAV && (
-                    <td style={{ ...S.TD, textAlign: 'right', fontSize: 11, color: BLUE, background: bg }}>
-                      {totalRB > 0 ? (total / totalRB * 100).toFixed(1) + '%' : '—'}
-                    </td>
-                  )}
-                </tr>
-              );
-            })}
+            {renderSection('3', 'CUSTOS VARIÁVEIS (CVS)',       'Custos Variáveis',          null,      'lucroBruto',  'LUCRO BRUTO',               'lucroBruto', 'Margem Bruta %', false)}
+            {renderSection('4', 'DESPESAS VARIÁVEIS (SG&A)',    'Despesas Variáveis',        null,      'margContrib', 'MARGEM DE CONTRIBUIÇÃO',    'margContrib', 'Margem de Contribuição %', false)}
+            {renderSection('5', 'DESPESAS FIXAS (G&A)',         'Despesas Fixas',            null,      'ebitda',      'EBITDA',                    'ebitda', 'Margem EBITDA %', true)}
+            {renderSection('6', 'OUTRAS RECEITAS E DESPESAS',   'Outras Receitas e Despesas',null,      'antesIR',     'RESULTADO ANTES DO IR',     null, null, false)}
+            {renderSection('7', 'IR E CSLL',                    'IR e CSLL',                 null,      'resLiq',      'RESULTADO LÍQUIDO',         'resLiq', 'Margem Líquida %', true)}
+
+            {/* Ponto de Equilíbrio */}
+            <tr style={{ background: AMBER_L, borderTop: '2px solid var(--color-border-tertiary)' }}>
+              <td style={{ ...S.TD, fontWeight: 700, color: AMBER, paddingLeft: 12, position: 'sticky', left: 0, background: AMBER_L }}>PONTO DE EQUILÍBRIO (R$)</td>
+              {monthRange.map(m => {
+                const v = allVals[m];
+                const pe = v?.pe ?? 0;
+                return <td key={m} style={{ ...S.TD, textAlign: 'right', fontWeight: 700, color: AMBER, background: AMBER_L }}>
+                  <div>{pe ? fmt(pe) : '—'}</div>
+                  {v?.recBruta > 0 && <div style={{ fontSize: 9, color: AMBER }}>{pe < v.recBruta ? '✓ Atingido' : '✗ Não atingido'}</div>}
+                </td>;
+              })}
+              <td style={{ ...S.TD, background: AMBER_L }} />
+              {showAV && <td style={{ ...S.TD, background: AMBER_L }} />}
+            </tr>
           </tbody>
         </table>
       </div>
@@ -1010,7 +1160,7 @@ function DRE({ lancamentos, plano, periodo }) {
 // ═══════════════════════════════════════════════════════
 // FLUXO DE CAIXA
 // ═══════════════════════════════════════════════════════
-function FluxoCaixa({ lancamentos, periodo }) {
+function FluxoCaixa({ lancamentos, plano, periodo }) {
   const [startMonth, setStartMonth] = useState(periodo.start);
   const [endMonth, setEndMonth]     = useState(periodo.end);
   const [saldo0, setSaldo0]         = useState('0');
@@ -1018,54 +1168,119 @@ function FluxoCaixa({ lancamentos, periodo }) {
 
   const monthRange = useMemo(() => buildMonthRange(startMonth, endMonth), [startMonth, endMonth]);
 
-  const getEntradas = (m, status) => lancamentos.filter(l =>
-    l.tipo === 'receita' && l.status === status &&
-    mk(status === 'realizado' ? l.dt_caixa_realizada : l.dt_caixa_prevista) === m
-  ).reduce((s, l) => s + l.valor, 0);
+  // Groups for each activity
+  const OPERACIONAL_GRUPOS  = ['Receita Operacional', 'Deduções sobre Vendas', 'Custos Variáveis', 'Despesas Variáveis', 'Despesas Fixas', 'IR e CSLL', 'Outras Receitas e Despesas'];
+  const INVESTIMENTO_GRUPOS = ['Atividade de Investimento'];
+  const FINANCIAMENTO_GRUPOS= ['Atividade de Financiamento'];
 
-  const getSaidas = (m, status) => lancamentos.filter(l =>
-    l.tipo === 'despesa' && l.status === status &&
-    mk(status === 'realizado' ? l.dt_caixa_realizada : l.dt_caixa_prevista) === m
-  ).reduce((s, l) => s + l.valor, 0);
+  const sumByGroups = (grupos, tipos, month, status_filter) =>
+    plano.filter(p => grupos.includes(p.grupo) && tipos.includes(p.tipo))
+      .reduce((s, p) => s + lancamentos.filter(l =>
+        l.conta_id === p.id &&
+        mk(status_filter === 'realizado' ? l.dt_caixa_realizada : (l.dt_caixa_realizada || l.dt_caixa_prevista)) === month &&
+        (status_filter === 'todos' || l.status === status_filter)
+      ).reduce((ss, l) => ss + l.valor, 0), 0);
 
-  let saldo = +saldo0 || 0;
-  const monthData = monthRange.map(m => {
-    const entReal = getEntradas(m, 'realizado');
-    const saiReal = getSaidas(m, 'realizado');
-    const entPrev = getEntradas(m, 'previsto');
-    const saiPrev = getSaidas(m, 'previsto');
-    const liquido = (entReal - saiReal) + (entPrev - saiPrev);
-    const si = saldo;
-    const sf = saldo + liquido;
-    saldo = sf;
-    return { m, entReal, saiReal, entPrev, saiPrev, liquido, si, sf };
-  });
+  const computeFC = (month) => {
+    const sf = 'todos'; // show both realized + projected
+    const recOp   = sumByGroups(OPERACIONAL_GRUPOS, ['receita'], month, sf);
+    const despOp  = sumByGroups(OPERACIONAL_GRUPOS, ['despesa'], month, sf);
+    const resOp   = recOp - despOp;
 
-  const tableRows = [
-    { key: 'si',      label: 'Saldo Inicial',            fn: r => r.si,      bold: false, color: 'var(--color-text-secondary)', bg: 'var(--color-background-secondary)', italic: false },
-    { key: 'entReal', label: '(+) Entradas Realizadas',  fn: r => r.entReal, bold: false, color: TEAL_D,    bg: TEAL_L },
-    { key: 'saiReal', label: '(-) Saídas Realizadas',    fn: r => r.saiReal, bold: false, color: RED,       bg: RED_L,  neg: true },
-    { key: 'entPrev', label: '(+) Entradas Previstas',   fn: r => r.entPrev, bold: false, color: TEAL_D,    bg: 'var(--color-background-primary)', italic: true },
-    { key: 'saiPrev', label: '(-) Saídas Previstas',     fn: r => r.saiPrev, bold: false, color: RED,       bg: 'var(--color-background-primary)', italic: true, neg: true },
-    { key: 'liquido', label: 'Líquido do Período',        fn: r => r.liquido, bold: true,  color: null,      bg: 'var(--color-background-secondary)' },
-    { key: 'sf',      label: 'SALDO FINAL',               fn: r => r.sf,      bold: true,  color: null,      bg: TEAL_L, highlight: true },
-  ];
+    const entInv  = sumByGroups(INVESTIMENTO_GRUPOS, ['receita'], month, sf);
+    const saiInv  = sumByGroups(INVESTIMENTO_GRUPOS, ['despesa'], month, sf);
+    const resInv  = entInv - saiInv;
 
-  const exportExcel = () => {
-    const header = ['Categoria', ...monthRange.map(ml), 'Total'];
-    const rows = [header, ...tableRows.map(tr => {
-      const vals = monthData.map(r => tr.fn(r));
-      return [tr.label, ...vals, tr.key === 'si' || tr.key === 'sf' ? '' : vals.reduce((a, b) => a + b, 0)];
-    })];
+    const entFin  = sumByGroups(FINANCIAMENTO_GRUPOS, ['receita'], month, sf);
+    const saiFin  = sumByGroups(FINANCIAMENTO_GRUPOS, ['despesa'], month, sf);
+    const resFin  = entFin - saiFin;
+
+    const geracao = resOp + resInv + resFin;
+    return { recOp, despOp, resOp, entInv, saiInv, resInv, entFin, saiFin, resFin, geracao };
+  };
+
+  const fcData = useMemo(() => {
+    let saldo = +saldo0 || 0;
+    return monthRange.map(m => {
+      const v = computeFC(m);
+      const si = saldo;
+      const sf = saldo + v.geracao;
+      saldo = sf;
+      return { m, ...v, si, sf };
+    });
+  }, [lancamentos, monthRange, saldo0, plano]);
+
+  const exportFC = () => {
+    const hdr = ['Linha', ...monthRange.map(ml), 'Total'];
+    const rows = [hdr];
+    const addRow = (label, key, indent) => {
+      const vals = fcData.map(r => r[key]);
+      rows.push([(indent ? '  ' : '') + label, ...vals, vals.reduce((a,b) => a+b, 0)]);
+    };
+    rows.push(['ATIVIDADES OPERACIONAIS']);
+    addRow('Entradas Operacionais', 'recOp', true);
+    addRow('Saídas Operacionais', 'despOp', true);
+    addRow('RESULTADO OPERACIONAL', 'resOp', false);
+    rows.push(['ATIVIDADES DE INVESTIMENTO']);
+    addRow('Entradas de Investimento', 'entInv', true);
+    addRow('Saídas de Investimento', 'saiInv', true);
+    addRow('RESULTADO DE INVESTIMENTOS', 'resInv', false);
+    rows.push(['ATIVIDADES DE FINANCIAMENTO']);
+    addRow('Entradas de Financiamento', 'entFin', true);
+    addRow('Saídas de Financiamento', 'saiFin', true);
+    addRow('RESULTADO DE FINANCIAMENTOS', 'resFin', false);
+    rows.push(['SÍNTESE']);
+    addRow('Saldo Inicial', 'si', false);
+    addRow('Geração de Caixa', 'geracao', false);
+    addRow('Saldo Final', 'sf', false);
     exportCSV(rows, `FluxoCaixa_Pruma_${startMonth}_${endMonth}.csv`);
   };
 
-  const chartData = monthData.map(r => ({
-    name: ml(r.m),
-    Entradas: +(r.entReal + r.entPrev).toFixed(2),
-    Saídas: +(r.saiReal + r.saiPrev).toFixed(2),
-    'Saldo Final': +r.sf.toFixed(2),
-  }));
+  const totalFor = (key) => fcData.reduce((s, r) => s + (r[key] || 0), 0);
+
+  const FCSection = ({ title, rows: rowDefs, resKey, resLabel, bg, color }) => (
+    <>
+      <tr style={{ background: bg }}>
+        <td colSpan={monthRange.length + 2} style={{ padding: '8px 12px 4px', fontSize: 10, fontWeight: 800, letterSpacing: '.1em', color, textTransform: 'uppercase', position: 'sticky', left: 0 }}>{title}</td>
+      </tr>
+      {rowDefs.map(({ label, key, neg }) => (
+        <tr key={key} style={{ background: 'var(--color-background-primary)' }}>
+          <td style={{ ...S.TD, fontSize: 12, paddingLeft: 24, color: 'var(--color-text-secondary)', position: 'sticky', left: 0, background: 'var(--color-background-primary)' }}>{label}</td>
+          {fcData.map(r => (
+            <td key={r.m} style={{ ...S.TD, textAlign: 'right', fontSize: 12, color: neg ? RED : TEAL_D }}>
+              {r[key] ? (neg ? `(${fmt(r[key])})` : fmt(r[key])) : '—'}
+            </td>
+          ))}
+          <td style={{ ...S.TD, textAlign: 'right', fontSize: 12, fontWeight: 500, color: neg ? RED : TEAL_D }}>
+            {totalFor(key) ? (neg ? `(${fmt(totalFor(key))})` : fmt(totalFor(key))) : '—'}
+          </td>
+        </tr>
+      ))}
+      <tr style={{ background: 'var(--color-background-secondary)', borderTop: '1px solid var(--color-border-tertiary)' }}>
+        <td style={{ ...S.TD, fontWeight: 700, color: DARK, paddingLeft: 12, position: 'sticky', left: 0, background: 'var(--color-background-secondary)' }}>{resLabel}</td>
+        {fcData.map(r => (
+          <td key={r.m} style={{ ...S.TD, textAlign: 'right', fontWeight: 700, color: r[resKey] >= 0 ? TEAL_D : RED, background: 'var(--color-background-secondary)' }}>
+            {fmt(r[resKey])}
+          </td>
+        ))}
+        <td style={{ ...S.TD, textAlign: 'right', fontWeight: 800, color: totalFor(resKey) >= 0 ? TEAL_D : RED, background: 'var(--color-background-secondary)' }}>
+          {fmt(totalFor(resKey))}
+        </td>
+      </tr>
+    </>
+  );
+
+  const SaldoRow = ({ label, key, highlight }) => (
+    <tr style={{ background: highlight ? TEAL_L : 'var(--color-background-secondary)', borderTop: highlight ? '2px solid var(--color-border-tertiary)' : 'none' }}>
+      <td style={{ ...S.TD, fontWeight: highlight ? 800 : 600, fontSize: highlight ? 14 : 13, color: highlight ? TEAL_D : DARK, paddingLeft: 12, position: 'sticky', left: 0, background: highlight ? TEAL_L : 'var(--color-background-secondary)' }}>{label}</td>
+      {fcData.map(r => (
+        <td key={r.m} style={{ ...S.TD, textAlign: 'right', fontWeight: highlight ? 800 : 600, fontSize: highlight ? 14 : 13, color: r[key] >= 0 ? TEAL_D : RED, background: highlight ? TEAL_L : 'var(--color-background-secondary)' }}>
+          {fmt(r[key])}
+        </td>
+      ))}
+      <td style={{ ...S.TD, textAlign: 'right', fontWeight: 800, color: TEAL_D, background: highlight ? TEAL_L : 'var(--color-background-secondary)' }}>—</td>
+    </tr>
+  );
 
   return (
     <div>
@@ -1075,76 +1290,76 @@ function FluxoCaixa({ lancamentos, periodo }) {
           <input type="month" value={startMonth} onChange={e => setStartMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
           <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Até:</span>
           <input type="month" value={endMonth} onChange={e => setEndMonth(e.target.value)} style={{ ...S.inp, width: 130, padding: '6px 10px', fontSize: 12 }} />
-          <button onClick={exportExcel} style={S.btn(TEAL_D)}>↓ CSV</button>
+          <button onClick={exportFC} style={S.btn(TEAL_D)}>↓ CSV</button>
         </div>
       } />
 
       <div style={{ ...S.card, marginBottom: 16, display: 'flex', gap: 16, alignItems: 'center' }}>
         <label style={{ ...S.lbl, marginBottom: 0, whiteSpace: 'nowrap' }}>Saldo Inicial (R$):</label>
         <input type="number" value={saldo0} onChange={e => setSaldo0(e.target.value)} style={{ ...S.inp, width: 180 }} />
-        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Carry-forward automático entre os meses</span>
+        <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>Use as contas 8.x (Investimentos) e 9.x (Financiamentos) no Plano de Contas para classificar esses fluxos.</span>
       </div>
 
-      <div style={{ ...S.card, overflowX: 'auto', marginBottom: 16 }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: monthRange.length * 140 + 230 }}>
+      <div style={{ ...S.card, overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: monthRange.length * 140 + 260 }}>
           <thead>
             <tr>
-              <th style={{ ...S.TH, textAlign: 'left', minWidth: 220, position: 'sticky', left: 0, background: '#111827', zIndex: 2 }}>Categoria</th>
-              {monthRange.map(m => (
-                <th key={m} style={{ ...S.TH, textAlign: 'right', minWidth: 130, background: mk(today()) === m ? `${TEAL}BB` : '#111827' }}>
-                  {ml(m)}{mk(today()) === m ? ' ●' : ''}
-                </th>
-              ))}
-              <th style={{ ...S.TH, textAlign: 'right', background: '#0a1628', minWidth: 120 }}>Total</th>
+              <th style={{ ...S.TH, textAlign: 'left', minWidth: 250, position: 'sticky', left: 0, background: '#111827', zIndex: 2 }}>Linha</th>
+              {monthRange.map(m => <th key={m} style={{ ...S.TH, textAlign: 'center', minWidth: 130, background: mk(today()) === m ? `${TEAL}BB` : '#111827' }}>{ml(m)}{mk(today()) === m ? ' ●' : ''}</th>)}
+              <th style={{ ...S.TH, textAlign: 'right', background: '#0a1628', minWidth: 120 }}>Total Período</th>
             </tr>
           </thead>
           <tbody>
-            {tableRows.map(tr => {
-              const vals = monthData.map(r => tr.fn(r));
-              const total = ['si', 'sf'].includes(tr.key) ? null : vals.reduce((a, b) => a + b, 0);
-              const bg = tr.bg || 'var(--color-background-primary)';
-              return (
-                <tr key={tr.key} style={{ borderTop: tr.highlight ? '1px solid var(--color-border-tertiary)' : 'none' }}>
-                  <td style={{ ...S.TD, fontWeight: tr.bold ? 700 : 400, color: tr.color || 'var(--color-text-primary)', fontStyle: tr.italic ? 'italic' : 'normal', background: bg, position: 'sticky', left: 0 }}>
-                    {tr.label}
-                  </td>
-                  {vals.map((v, i) => {
-                    const color = tr.highlight ? (v >= 0 ? TEAL_D : RED) : tr.key === 'liquido' ? (v >= 0 ? TEAL_D : RED) : (tr.color || 'var(--color-text-primary)');
-                    return (
-                      <td key={monthRange[i]} style={{ ...S.TD, textAlign: 'right', fontWeight: tr.bold ? 700 : 400, color, background: bg }}>
-                        {tr.neg ? (v ? `(${fmt(v)})` : '—') : (v !== null && v !== 0 ? fmt(v) : '—')}
-                      </td>
-                    );
-                  })}
-                  <td style={{ ...S.TD, textAlign: 'right', fontWeight: tr.bold ? 700 : 400, color: tr.highlight ? (monthData.at(-1)?.sf >= 0 ? TEAL_D : RED) : (tr.color || 'var(--color-text-primary)'), background: bg }}>
-                    {total !== null ? (tr.neg ? (total ? `(${fmt(total)})` : '—') : (total ? fmt(total) : '—')) : '—'}
-                  </td>
-                </tr>
-              );
-            })}
+            <FCSection title="Atividades Operacionais" bg={TEAL_L} color={TEAL_D}
+              rows={[
+                { label: 'Receitas Operacionais Recebidas', key: 'recOp',  neg: false },
+                { label: 'Custos e Despesas Pagos',         key: 'despOp', neg: true  },
+              ]}
+              resKey="resOp" resLabel="= RESULTADO OPERACIONAL" />
+
+            <FCSection title="Atividades de Investimento" bg={BLUE_L} color={BLUE}
+              rows={[
+                { label: 'Entradas de Investimento', key: 'entInv', neg: false },
+                { label: 'Saídas de Investimento',   key: 'saiInv', neg: true  },
+              ]}
+              resKey="resInv" resLabel="= RESULTADO DE INVESTIMENTOS" />
+
+            <FCSection title="Atividades de Financiamento" bg={AMBER_L} color={AMBER}
+              rows={[
+                { label: 'Entradas de Financiamento', key: 'entFin', neg: false },
+                { label: 'Saídas de Financiamento',   key: 'saiFin', neg: true  },
+              ]}
+              resKey="resFin" resLabel="= RESULTADO DE FINANCIAMENTOS" />
+
+            {/* Síntese */}
+            <tr><td colSpan={monthRange.length + 2} style={{ padding: '10px 12px 4px', fontSize: 10, fontWeight: 800, letterSpacing: '.1em', color: TEAL_D, background: TEAL_L, textTransform: 'uppercase', position: 'sticky', left: 0 }}>Síntese</td></tr>
+            <SaldoRow label="Saldo Inicial"   key_="si"      highlight={false} {...{key: 'row-si'}} />
+            <SaldoRow label="Geração de Caixa" key_="geracao" highlight={false} {...{key: 'row-g'}} />
+            <SaldoRow label="SALDO FINAL"     key_="sf"      highlight={true}  {...{key: 'row-sf'}} />
           </tbody>
         </table>
       </div>
 
-      <div style={S.card}>
+      {/* Chart */}
+      <div style={{ ...S.card, marginTop: 16 }}>
         <div style={{ fontSize: 13, fontWeight: 500, marginBottom: 12 }}>Evolução do Saldo Final</div>
-        <ResponsiveContainer width="100%" height={190}>
-          <AreaChart data={chartData}>
+        <ResponsiveContainer width="100%" height={180}>
+          <AreaChart data={fcData.map(r => ({ name: ml(r.m), Operacional: +r.resOp.toFixed(2), 'Saldo Final': +r.sf.toFixed(2) }))}>
             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-border-tertiary)" />
             <XAxis dataKey="name" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={70}
-              tickFormatter={v => Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(v)} />
+            <YAxis tick={{ fontSize: 10 }} axisLine={false} tickLine={false} width={70} tickFormatter={v => Intl.NumberFormat('pt-BR', { notation: 'compact', style: 'currency', currency: 'BRL' }).format(v)} />
             <Tooltip formatter={(v, n) => [fmt(v), n]} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Area dataKey="Entradas"    stroke={TEAL} fill={TEAL_L} strokeWidth={2} />
-            <Area dataKey="Saídas"      stroke={RED}  fill={RED_L}  strokeWidth={1.5} />
-            <Area dataKey="Saldo Final" stroke={BLUE} fill={BLUE_L} strokeWidth={2} />
+            <Area dataKey="Operacional"  stroke={TEAL} fill={TEAL_L} strokeWidth={2} />
+            <Area dataKey="Saldo Final"  stroke={BLUE} fill={BLUE_L} strokeWidth={2} />
           </AreaChart>
         </ResponsiveContainer>
       </div>
     </div>
   );
 }
+
+
 
 // ═══════════════════════════════════════════════════════
 // CONTAS A RECEBER / PAGAR
