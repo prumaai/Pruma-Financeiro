@@ -5,6 +5,24 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from "recharts";
 
+// Storage adapter: usa Supabase (produção) ou window.storage (Claude artifact)
+let _storage = null;
+const getStorage = async () => {
+  if (_storage) return _storage;
+  if (typeof window !== 'undefined' && window.storage) {
+    // Modo Claude artifact
+    _storage = {
+      get: (key) => window.storage.get(key, true),
+      set: (key, val) => window.storage.set(key, val, true),
+    };
+  } else {
+    // Modo Netlify — importa storage.js (Supabase ou localStorage)
+    const mod = await import('./storage.js');
+    _storage = mod.storage;
+  }
+  return _storage;
+};
+
 // ═══════════════════════════════════════════════════════
 // CONSTANTS
 // ═══════════════════════════════════════════════════════
@@ -114,11 +132,17 @@ const buildMonthRange = (start, end) => {
 // STORAGE
 // ═══════════════════════════════════════════════════════
 const stLoad = async (key, def) => {
-  try { const r = await window.storage.get(key, true); return r ? JSON.parse(r.value) : def; }
-  catch { return def; }
+  try {
+    const st = await getStorage();
+    const r = await st.get(key);
+    return r ? JSON.parse(r.value) : def;
+  } catch { return def; }
 };
 const stSave = async (key, val) => {
-  try { await window.storage.set(key, JSON.stringify(val), true); } catch {}
+  try {
+    const st = await getStorage();
+    await st.set(key, JSON.stringify(val));
+  } catch {}
 };
 // ─── CSV Export ───────────────────────────────────────
 const exportCSV = (rows, filename) => {
