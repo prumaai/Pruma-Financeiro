@@ -578,14 +578,6 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
 
     const custos = calcCustos(form);
 
-    // Comissão proporcional a um valor base
-    const buildComissao = (receitaId, descBase, valorBase, dtComp, dtVcto, status, clienteId) => {
-      if (!form.comissao_ativo || !+form.comissao_pct) return [];
-      const valor = +(valorBase * (+form.comissao_pct) / 100).toFixed(2);
-      if (!valor) return [];
-      const conta = plano.find(p => p.id === form.comissao_conta_id) || contaByPrefix('3.2') || plano.find(p => p.tipo === 'despesa');
-      return [{ id: uid(), tipo: 'despesa', descricao: `Comissão ${form.comissao_pct}% — ${descBase}`, conta_id: conta?.id || '', valor, custo: 0, dt_competencia: dtComp, dt_caixa_prevista: dtVcto, dt_caixa_realizada: '', status, cliente_id: clienteId, criado_por: currentUser.name, origem_id: receitaId }];
-    };
 
     // Comissão: prazo de caixa baseado na conta escolhida
     const buildComissao = (receitaId, descBase, valorBase, dtVcto, status, clienteId) => {
