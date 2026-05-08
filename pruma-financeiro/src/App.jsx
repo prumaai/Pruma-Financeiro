@@ -552,7 +552,7 @@ function CostBlock({ form, setF, calcCustos, plano, colaboradores = [], premissa
   );
 }
 
-function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, saveLanc, recorrentes, saveRecorr }) {
+function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, saveLanc, recorrentes, saveRecorr, colaboradores = [], premissas = {} }) {
   const [tab, setTab] = useState('avulsos'); // 'avulsos' | 'recorrentes'
   const [modal, setModal] = useState(false);
   const [form, setForm] = useState({});
