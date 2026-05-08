@@ -18,7 +18,7 @@ const DARK = '#0B1E3F'; // Azul Marinho
 
 const K = {
   users: 'pf_users', lanc: 'pf_lanc', cli: 'pf_cli',
-  plano: 'pf_plano', ext: 'pf_ext', audit: 'pf_audit',
+  plano: 'pf_plano_v2', ext: 'pf_ext', audit: 'pf_audit',
 };
 
 const U0 = [
@@ -634,11 +634,80 @@ function Lancamentos({ lancamentos, clientes, plano, currentUser, addAudit, save
             <Field label={parcelar ? 'Valor Total (R$) *' : 'Valor (R$) *'}>
               <input type="number" value={form.valor || ''} onChange={e => setF('valor', e.target.value)} style={S.inp} min="0" step="0.01" />
             </Field>
-            {form.tipo === 'receita' && (
-              <Field label="Custo do serviço (R$) — para margem">
-                <input type="number" value={form.custo || ''} onChange={e => setF('custo', e.target.value)} style={S.inp} min="0" step="0.01" />
-              </Field>
-            )}
+          </div>
+
+          {/* ── Estrutura de Custos (só para Receitas) ── */}
+          {form.tipo === 'receita' && (() => {
+            const custos = calcCustos(form);
+            const v = +form.valor || 0;
+            const despConta = plano.filter(p => p.tipo === 'despesa');
+            const ChkRow = ({ id, label, ativo, onToggle, children }) => (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderBottom: '1px solid var(--color-border-tertiary)' }}>
+                <input type="checkbox" id={id} checked={!!ativo} onChange={e => onToggle(e.target.checked)}
+                  style={{ width: 16, height: 16, cursor: 'pointer', accentColor: TEAL, flexShrink: 0 }} />
+                <label htmlFor={id} style={{ fontWeight: 500, fontSize: 13, minWidth: 80, cursor: 'pointer' }}>{label}</label>
+                {ativo && children}
+              </div>
+            );
+            return (
+              <div style={{ marginTop: 4, padding: 14, background: 'var(--color-background-secondary)', borderRadius: 8, border: `1px solid var(--color-border-tertiary)` }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--color-text-secondary)', letterSpacing: '.08em', textTransform: 'uppercase', marginBottom: 6 }}>Estrutura de Custos</div>
+
+                {/* Comissão */}
+                <ChkRow id="chk-com" label="Comissão" ativo={form.comissao_ativo} onToggle={v => setF('comissao_ativo', v)}>
+                  <input type="number" value={form.comissao_pct || ''} onChange={e => setF('comissao_pct', e.target.value)}
+                    style={{ ...S.inp, width: 70 }} placeholder="%" min="0" max="100" step="0.1" />
+                  <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>%</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: RED, minWidth: 90 }}>= {fmt(custos.comissao)}</span>
+                  <select value={form.comissao_conta_id || ''} onChange={e => setF('comissao_conta_id', e.target.value)}
+                    style={{ ...S.inp, flex: 1, fontSize: 11 }}>
+                    <option value="">Conta despesa...</option>
+                    {despConta.map(p => <option key={p.id} value={p.id}>{p.cod} — {p.nome}</option>)}
+                  </select>
+                </ChkRow>
+
+                {/* Imposto */}
+                <ChkRow id="chk-imp" label="Imposto" ativo={form.imposto_ativo} onToggle={v => setF('imposto_ativo', v)}>
+                  <input type="number" value={form.imposto_pct || ''} onChange={e => setF('imposto_pct', e.target.value)}
+                    style={{ ...S.inp, width: 70 }} placeholder="%" min="0" max="100" step="0.1" />
+                  <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>%</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: RED, minWidth: 90 }}>= {fmt(custos.imposto)}</span>
+                  <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', flex: 1 }}>→ 2.1 Impostos sobre Receita (automático)</span>
+                </ChkRow>
+
+                {/* Boleto */}
+                <ChkRow id="chk-bol" label="Boleto" ativo={form.boleto_ativo} onToggle={v => setF('boleto_ativo', v)}>
+                  <span style={{ fontSize: 12, color: 'var(--color-text-secondary)' }}>R$</span>
+                  <input type="number" value={form.boleto_valor || ''} onChange={e => setF('boleto_valor', e.target.value)}
+                    style={{ ...S.inp, width: 90 }} placeholder="0,00" min="0" step="0.01" />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: RED, minWidth: 90 }}>= {fmt(custos.boleto)}</span>
+                  <span style={{ fontSize: 11, color: 'var(--color-text-secondary)', flex: 1 }}>→ 2.2 Taxas Bancárias (automático)</span>
+                </ChkRow>
+
+                {/* Resumo */}
+                {custos.total > 0 && (
+                  <div style={{ marginTop: 12, display: 'flex', gap: 20, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div>
+                      <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>Custo total: </span>
+                      <strong style={{ color: RED }}>{fmt(custos.total)}</strong>
+                    </div>
+                    <div>
+                      <span style={{ fontSize: 11, color: 'var(--color-text-secondary)' }}>Margem: </span>
+                      <strong style={{ color: custos.margem >= 0 ? TEAL_D : RED }}>{custos.margem.toFixed(1)}%</strong>
+                    </div>
+                    {[form.comissao_ativo, form.imposto_ativo, form.boleto_ativo].filter(Boolean).length > 0 && (
+                      <span style={{ fontSize: 11, color: BLUE }}>
+                        ⚡ {[form.comissao_ativo, form.imposto_ativo, form.boleto_ativo].filter(Boolean).length} lançamento(s) de despesa serão criados automaticamente na DRE
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+            <Field label="Data de Competência *">
             <Field label="Data de Competência *">
               <input type="date" value={form.dt_competencia || ''} onChange={e => setF('dt_competencia', e.target.value)} style={S.inp} />
             </Field>
